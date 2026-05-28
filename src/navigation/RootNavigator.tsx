@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SettingsStack } from '@/navigation/SettingsStack';
 import { SplashScreen } from '@/screens/splash/SplashScreen';
 import { color, space, type } from '@/theme';
 
@@ -59,11 +60,15 @@ function MainTabs() {
         ],
       }}
     >
-      {tabLabels.map((label) => (
-        <Tabs.Screen key={label} name={label}>
-          {() => <PlaceholderScreen label={label} />}
-        </Tabs.Screen>
-      ))}
+      {tabLabels.map((label) =>
+        label === 'Settings' ? (
+          <Tabs.Screen component={SettingsStack} key={label} name={label} />
+        ) : (
+          <Tabs.Screen key={label} name={label}>
+            {() => <PlaceholderScreen label={label} />}
+          </Tabs.Screen>
+        ),
+      )}
     </Tabs.Navigator>
   );
 }

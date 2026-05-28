@@ -9,6 +9,7 @@ export default defineConfig({
     alias: {
       '@': resolve(rootDir, 'src'),
       'react-native': resolve(rootDir, 'tests/mocks/react-native.ts'),
+      'react-native-mmkv': resolve(rootDir, 'tests/mocks/react-native-mmkv.ts'),
     },
   },
   test: {
