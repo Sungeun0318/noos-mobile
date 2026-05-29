@@ -98,6 +98,8 @@ export const useAuthStore = create<AuthState>()(
             log.warn('me check failed during bootstrap', {
               code: error instanceof ApiError ? error.code : 'UNKNOWN',
             });
+            set({ mode: 'guest', user: null });
+            return;
           }
 
           await get().logout();
