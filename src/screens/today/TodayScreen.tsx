@@ -10,6 +10,7 @@ import { useHealth } from '@/queries/useHealth';
 import { getTodayMockData, type TodayMockData, type TodayPendingSession } from '@/screens/today/mockData';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useStateStore } from '@/stores/stateStore';
 import { color, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
 
 type TabNavigation = {
@@ -22,6 +23,10 @@ export function TodayScreen() {
   const user = useAuthStore((state) => state.user);
   const mode = useAuthStore((state) => state.mode);
   const backendBaseUrl = useSettingsStore((state) => state.backendBaseUrl);
+  const stateLabel = useStateStore((state) => state.stateLabel);
+  const measuredAt = useStateStore((state) => state.measuredAt);
+  const source = useStateStore((state) => state.source);
+  const recommendedPlanet = useStateStore((state) => state.recommendedPlanet);
   const mockData = getTodayMockData();
 
   useEffect(() => {
@@ -61,8 +66,8 @@ export function TodayScreen() {
     >
       <Header displayName={mode === 'authed' ? user?.displayName : null} />
       <GuestPromptCard />
-      <StateCard data={mockData} onMeasure={goMeasure} />
-      <RecommendedPlanetCard data={mockData} />
+      <StateCard measuredAt={measuredAt} onMeasure={goMeasure} source={source} stateLabel={stateLabel} />
+      <RecommendedPlanetCard planet={recommendedPlanet} />
       <PendingSessionsBlock sessions={mockData.pendingSessions} />
       <Button fullWidth label="지금 세션 시작" onPress={goStartSession} size="lg" />
       <RecentSessionMini data={mockData} />
@@ -99,9 +104,43 @@ function HealthDot() {
   );
 }
 
-function StateCard({ data, onMeasure }: { data: TodayMockData; onMeasure: () => void }) {
-  // TODO FE-05: replace mock state with stateStore.currentState.
-  if (!data.state) {
+function formatMeasuredAt(measuredAt: string | null) {
+  if (!measuredAt) {
+    return null;
+  }
+
+  return new Date(measuredAt).toLocaleString('ko-KR', {
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    month: 'short',
+  });
+}
+
+function sourceLabel(source: string | null) {
+  if (source === 'eeg') {
+    return 'EEG';
+  }
+
+  if (source === 'hybrid') {
+    return '설문+EEG';
+  }
+
+  return '설문 측정';
+}
+
+function StateCard({
+  stateLabel,
+  measuredAt,
+  source,
+  onMeasure,
+}: {
+  stateLabel: string | null;
+  measuredAt: string | null;
+  source: string | null;
+  onMeasure: () => void;
+}) {
+  if (!stateLabel) {
     return (
       <Card level={2} padding="xl">
         <View style={styles.cardStack}>
@@ -117,27 +156,28 @@ function StateCard({ data, onMeasure }: { data: TodayMockData; onMeasure: () => 
     <Card level={2} padding="xl">
       <View style={styles.cardStack}>
         <Text style={styles.label}>마지막 측정</Text>
-        <Text style={styles.stateLabel}>{data.state.label}</Text>
+        <Text style={styles.stateLabel}>{stateLabel}</Text>
         <Text style={styles.bodyText}>
-          {data.state.measuredAtLabel} · {data.state.sourceLabel}
+          {formatMeasuredAt(measuredAt) ?? '방금'} · {sourceLabel(source)}
         </Text>
       </View>
     </Card>
   );
 }
 
-function RecommendedPlanetCard({ data }: { data: TodayMockData }) {
-  // TODO FE-05: replace mock recommendation with measured state recommendation.
-  const planet = PLANETS[data.recommendedPlanet.planet];
-  const colors = PLANET_COLORS[data.recommendedPlanet.planet];
+function RecommendedPlanetCard({ planet: measuredPlanet }: { planet: keyof typeof PLANETS | null }) {
+  const planetId = measuredPlanet ?? 'neptune';
+  const planet = PLANETS[planetId];
+  const colors = PLANET_COLORS[planetId];
+  const subtitle = measuredPlanet ? planet.description : '측정 후 더 정확해져요';
 
   return (
     <Card level={1} padding="xl" planetTint={planet.id}>
       <View style={styles.recommendRow}>
         <View style={styles.cardStack}>
           <Text style={styles.label}>추천 행성</Text>
-          <Text style={styles.cardTitle}>{data.recommendedPlanet.title}</Text>
-          <Text style={styles.bodyText}>{data.recommendedPlanet.subtitle}</Text>
+          <Text style={styles.cardTitle}>{planet.title}</Text>
+          <Text style={styles.bodyText}>{subtitle}</Text>
         </View>
         <View style={[styles.planetOrb, { backgroundColor: colors.secondary }]} />
       </View>
