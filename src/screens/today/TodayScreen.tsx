@@ -1,0 +1,371 @@
+import { useNavigation } from '@react-navigation/native';
+import { useEffect } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { Button, Card } from '@/components/ui';
+import { GuestPromptCard } from '@/components/GuestPromptCard';
+import { noosTelemetry } from '@/lib/telemetry';
+import { useHealth } from '@/queries/useHealth';
+import { getTodayMockData, type TodayMockData, type TodayPendingSession } from '@/screens/today/mockData';
+import { useAuthStore } from '@/stores/authStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { color, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
+
+type TabNavigation = {
+  navigate: (screen: 'Measure' | 'Journey' | 'History' | 'Settings') => void;
+};
+
+export function TodayScreen() {
+  const navigation = useNavigation<TabNavigation>();
+  const insets = useSafeAreaInsets();
+  const user = useAuthStore((state) => state.user);
+  const mode = useAuthStore((state) => state.mode);
+  const backendBaseUrl = useSettingsStore((state) => state.backendBaseUrl);
+  const mockData = getTodayMockData();
+
+  useEffect(() => {
+    noosTelemetry.track('today_view');
+  }, []);
+
+  function goMeasure() {
+    noosTelemetry.track('today_measure_tap');
+    navigation.navigate('Measure');
+  }
+
+  function goStartSession() {
+    noosTelemetry.track('today_start_session_tap', { from: 'cta' });
+    navigation.navigate('Journey');
+  }
+
+  if (!backendBaseUrl) {
+    return (
+      <View style={[styles.gate, { paddingTop: insets.top + space['3xl'] }]}>
+        <Text style={styles.gateTitle}>백엔드 연결 설정</Text>
+        <Text style={styles.gateCopy}>NOOS 모바일 API 주소를 먼저 연결해야 Today를 볼 수 있어요.</Text>
+        <Button label="설정으로 이동" onPress={() => navigation.navigate('Settings')} />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingBottom: insets.bottom + space['6xl'],
+          paddingTop: insets.top + space.xl,
+        },
+      ]}
+      style={styles.container}
+    >
+      <Header displayName={mode === 'authed' ? user?.displayName : null} />
+      <GuestPromptCard />
+      <StateCard data={mockData} onMeasure={goMeasure} />
+      <RecommendedPlanetCard data={mockData} />
+      <PendingSessionsBlock sessions={mockData.pendingSessions} />
+      <Button fullWidth label="지금 세션 시작" onPress={goStartSession} size="lg" />
+      <RecentSessionMini data={mockData} />
+    </ScrollView>
+  );
+}
+
+function Header({ displayName }: { displayName: string | null | undefined }) {
+  return (
+    <View style={styles.header}>
+      <View>
+        <Text style={styles.eyebrow}>Today</Text>
+        <Text style={styles.title}>안녕하세요, {displayName || 'Explorer'}</Text>
+      </View>
+      <HealthDot />
+    </View>
+  );
+}
+
+function HealthDot() {
+  const { data, isError } = useHealth();
+  const healthy = data?.backend === 'ok' && data.aceStep === 'ok';
+
+  return (
+    <View
+      accessibilityLabel="backend health"
+      style={[
+        styles.healthDot,
+        {
+          backgroundColor: isError ? color.state.danger : healthy ? color.state.success : color.state.warning,
+        },
+      ]}
+    />
+  );
+}
+
+function StateCard({ data, onMeasure }: { data: TodayMockData; onMeasure: () => void }) {
+  // TODO FE-05: replace mock state with stateStore.currentState.
+  if (!data.state) {
+    return (
+      <Card level={2} padding="xl">
+        <View style={styles.cardStack}>
+          <Text style={styles.cardTitle}>아직 측정 기록이 없어요</Text>
+          <Text style={styles.bodyText}>지금 상태를 입력하면 더 정확한 행성 추천을 받을 수 있어요.</Text>
+          <Button label="내 상태 측정하기" onPress={onMeasure} variant="secondary" />
+        </View>
+      </Card>
+    );
+  }
+
+  return (
+    <Card level={2} padding="xl">
+      <View style={styles.cardStack}>
+        <Text style={styles.label}>마지막 측정</Text>
+        <Text style={styles.stateLabel}>{data.state.label}</Text>
+        <Text style={styles.bodyText}>
+          {data.state.measuredAtLabel} · {data.state.sourceLabel}
+        </Text>
+      </View>
+    </Card>
+  );
+}
+
+function RecommendedPlanetCard({ data }: { data: TodayMockData }) {
+  // TODO FE-05: replace mock recommendation with measured state recommendation.
+  const planet = PLANETS[data.recommendedPlanet.planet];
+  const colors = PLANET_COLORS[data.recommendedPlanet.planet];
+
+  return (
+    <Card level={1} padding="xl" planetTint={planet.id}>
+      <View style={styles.recommendRow}>
+        <View style={styles.cardStack}>
+          <Text style={styles.label}>추천 행성</Text>
+          <Text style={styles.cardTitle}>{data.recommendedPlanet.title}</Text>
+          <Text style={styles.bodyText}>{data.recommendedPlanet.subtitle}</Text>
+        </View>
+        <View style={[styles.planetOrb, { backgroundColor: colors.secondary }]} />
+      </View>
+    </Card>
+  );
+}
+
+function PendingSessionsBlock({ sessions }: { sessions: TodayPendingSession[] }) {
+  // TODO FE-07: replace mock sessions with sessionStore.pending and usePollSession.
+  if (sessions.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>생성 중인 세션</Text>
+      {sessions.map((session) => (
+        <Card key={session.id} level={2} padding="lg" planetTint={session.planet}>
+          <View style={styles.pendingContent}>
+            <View style={styles.pendingHeader}>
+              <Text style={styles.pendingTitle}>
+                {session.planetTitle} · {session.durationLabel} · {session.statusLabel}
+              </Text>
+              <Text style={styles.pendingEta}>{session.etaLabel}</Text>
+            </View>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    backgroundColor: PLANET_COLORS[session.planet].secondary,
+                    width: `${Math.round(session.progress * 100)}%`,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        </Card>
+      ))}
+    </View>
+  );
+}
+
+function RecentSessionMini({ data }: { data: TodayMockData }) {
+  if (!data.recentSession) {
+    return null;
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => {
+        // TODO FE-12: navigate HistoryDetail when the detail route exists.
+      }}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      <Card level={1} padding="lg" planetTint={data.recentSession.planet}>
+        <View style={styles.recentRow}>
+          <View style={styles.cardStack}>
+            <Text style={styles.label}>최근 세션</Text>
+            <Text style={styles.recentTitle}>{data.recentSession.title}</Text>
+          </View>
+          <Text style={styles.pendingEta}>{data.recentSession.completedAtLabel}</Text>
+        </View>
+      </Card>
+    </Pressable>
+  );
+}
+
+const orbSize = space['5xl'];
+
+const styles = StyleSheet.create({
+  bodyText: {
+    color: color.text.secondary,
+    fontFamily: type.body.family,
+    fontSize: type.body.size,
+    fontWeight: type.body.weight,
+    lineHeight: type.body.lineHeight,
+  },
+  cardStack: {
+    flex: 1,
+    gap: space.xs,
+  },
+  cardTitle: {
+    color: color.text.primary,
+    fontFamily: type.h2.family,
+    fontSize: type.h2.size,
+    fontWeight: type.h2.weight,
+    lineHeight: type.h2.lineHeight,
+  },
+  container: {
+    backgroundColor: color.bg.base,
+  },
+  content: {
+    gap: space.lg,
+    paddingHorizontal: space.xl,
+  },
+  eyebrow: {
+    color: color.text.tertiary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    letterSpacing: 0.4,
+    lineHeight: type.caption.lineHeight,
+  },
+  gate: {
+    backgroundColor: color.bg.base,
+    flex: 1,
+    gap: space.lg,
+    justifyContent: 'center',
+    padding: space.xl,
+  },
+  gateCopy: {
+    color: color.text.secondary,
+    fontFamily: type.body.family,
+    fontSize: type.body.size,
+    fontWeight: type.body.weight,
+    lineHeight: type.body.lineHeight,
+  },
+  gateTitle: {
+    color: color.text.primary,
+    fontFamily: type.h1.family,
+    fontSize: type.h1.size,
+    fontWeight: type.h1.weight,
+    lineHeight: type.h1.lineHeight,
+  },
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  healthDot: {
+    borderColor: color.border.strong,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: space.md,
+    width: space.md,
+  },
+  label: {
+    color: color.text.tertiary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    letterSpacing: 0.4,
+    lineHeight: type.caption.lineHeight,
+  },
+  pendingContent: {
+    gap: space.md,
+  },
+  pendingEta: {
+    color: color.text.tertiary,
+    fontFamily: type.small.family,
+    fontSize: type.small.size,
+    fontWeight: type.small.weight,
+    lineHeight: type.small.lineHeight,
+  },
+  pendingHeader: {
+    gap: space.xs,
+  },
+  pendingTitle: {
+    color: color.text.primary,
+    fontFamily: type.bodyMd.family,
+    fontSize: type.bodyMd.size,
+    fontWeight: type.bodyMd.weight,
+    lineHeight: type.bodyMd.lineHeight,
+  },
+  planetOrb: {
+    borderRadius: orbSize / 2,
+    height: orbSize,
+    opacity: 0.88,
+    width: orbSize,
+  },
+  pressed: {
+    opacity: 0.85,
+  },
+  progressFill: {
+    borderRadius: radius.pill,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+  },
+  progressTrack: {
+    backgroundColor: color.bg.elevated,
+    borderRadius: radius.pill,
+    height: space.xs,
+    overflow: 'hidden',
+  },
+  recentRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space.md,
+    justifyContent: 'space-between',
+  },
+  recentTitle: {
+    color: color.text.primary,
+    fontFamily: type.bodyMd.family,
+    fontSize: type.bodyMd.size,
+    fontWeight: type.bodyMd.weight,
+    lineHeight: type.bodyMd.lineHeight,
+  },
+  recommendRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space.lg,
+  },
+  section: {
+    gap: space.sm,
+  },
+  sectionTitle: {
+    color: color.text.secondary,
+    fontFamily: type.h3.family,
+    fontSize: type.h3.size,
+    fontWeight: type.h3.weight,
+    lineHeight: type.h3.lineHeight,
+  },
+  stateLabel: {
+    color: color.text.primary,
+    fontFamily: type.display.family,
+    fontSize: type.display.size,
+    fontWeight: type.display.weight,
+    lineHeight: type.display.lineHeight,
+  },
+  title: {
+    color: color.text.primary,
+    fontFamily: type.h1.family,
+    fontSize: type.h1.size,
+    fontWeight: type.h1.weight,
+    lineHeight: type.h1.lineHeight,
+  },
+});

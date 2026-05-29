@@ -10,6 +10,7 @@ import { subscribeNetInfo } from '@/lib/netinfo';
 import { noosTelemetry } from '@/lib/telemetry';
 import { SettingsStack } from '@/navigation/SettingsStack';
 import { SplashScreen } from '@/screens/splash/SplashScreen';
+import { TodayScreen } from '@/screens/today/TodayScreen';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { color, space, type } from '@/theme';
@@ -66,15 +67,19 @@ function MainTabs() {
         ],
       }}
     >
-      {tabLabels.map((label) =>
-        label === 'Settings' ? (
+      {tabLabels.map((label) => {
+        if (label === 'Today') {
+          return <Tabs.Screen component={TodayScreen} key={label} name={label} />;
+        }
+
+        return label === 'Settings' ? (
           <Tabs.Screen component={SettingsStack} key={label} name={label} />
         ) : (
           <Tabs.Screen key={label} name={label}>
             {() => <PlaceholderScreen label={label} />}
           </Tabs.Screen>
-        ),
-      )}
+        );
+      })}
     </Tabs.Navigator>
   );
 }
