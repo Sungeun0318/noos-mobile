@@ -36,3 +36,41 @@ export interface MeResponse {
   deviceId: string;
   user: MobileUser | null;
 }
+
+export interface MeasureSurvey {
+  focus?: number | null;
+  stress?: number | null;
+  fatigue?: number | null;
+  relaxation?: number | null;
+  intentText?: string | null;
+}
+
+export interface MeasureRequest {
+  survey: MeasureSurvey;
+}
+
+export interface CurrentState {
+  focus_readiness: number;
+  stress_load: number;
+  fatigue_risk: number;
+  relaxation_level: number;
+  cortical_arousal: number;
+  mental_workload: number;
+}
+
+export type MeasureSource = 'survey' | 'eeg' | 'hybrid';
+
+export interface MeasureResponse {
+  measurementId: string;
+  stateLabel: string;
+  currentState: CurrentState;
+  recommendedPlanet: string;
+  alternates: string[];
+  confidence: number;
+  source: MeasureSource;
+  weight: {
+    survey: number;
+    eeg: number;
+  };
+  measuredAt: string;
+}
