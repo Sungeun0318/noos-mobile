@@ -34,7 +34,7 @@ const config: ExpoConfig = {
   extra: {
     defaultBackendUrl: process.env.EXPO_PUBLIC_DEFAULT_BACKEND_URL ?? '',
   },
-  plugins: ['expo-dev-client'],
+  plugins: ['expo-dev-client', 'expo-secure-store'],
 };
 
 export default config;

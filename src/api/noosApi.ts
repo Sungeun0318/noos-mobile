@@ -1,8 +1,37 @@
 import { request, requestWithBaseUrl } from './client';
-import type { MobileHealthResponse } from './types';
+import type { AuthResponse, MeResponse, MobileHealthResponse } from './types';
 
 export const noosApi = {
   health: () => request<MobileHealthResponse>('/api/mobile/health'),
   healthWithBaseUrl: (baseUrl: string) =>
     requestWithBaseUrl<MobileHealthResponse>(baseUrl, '/api/mobile/health'),
+  auth: {
+    signup: (body: {
+      loginId: string;
+      password: string;
+      displayName: string;
+      claimDeviceId?: string;
+    }) =>
+      request<AuthResponse>('/api/mobile/auth/signup', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    login: (body: { loginId: string; password: string; claimDeviceId?: string }) =>
+      request<AuthResponse>('/api/mobile/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    refresh: (body: { refreshToken: string }) =>
+      request<AuthResponse>('/api/mobile/auth/refresh', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    logout: () => request<{ ok: true }>('/api/mobile/auth/logout', { method: 'POST' }),
+    me: () => request<MeResponse>('/api/mobile/me'),
+    claimAnonymous: (body: { deviceId: string }) =>
+      request<{ ok: true; claimedCount: unknown }>('/api/mobile/auth/claim-anonymous', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+  },
 };
