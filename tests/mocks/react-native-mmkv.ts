@@ -1,4 +1,10 @@
-const stores = new Map<string, Map<string, string>>();
+type MockGlobal = typeof globalThis & {
+  __noosMockMMKVStores?: Map<string, Map<string, string>>;
+};
+
+const mockGlobal = globalThis as MockGlobal;
+const stores = mockGlobal.__noosMockMMKVStores ?? new Map<string, Map<string, string>>();
+mockGlobal.__noosMockMMKVStores = stores;
 
 class MockMMKV {
   private storage: Map<string, string>;
@@ -29,4 +35,19 @@ class MockMMKV {
 
 export function createMMKV(config: { id?: string } = {}) {
   return new MockMMKV(config);
+}
+
+export function __resetMMKV() {
+  stores.clear();
+}
+
+export function __getMMKVStore(id = 'default') {
+  let storage = stores.get(id);
+
+  if (!storage) {
+    storage = new Map();
+    stores.set(id, storage);
+  }
+
+  return storage;
 }

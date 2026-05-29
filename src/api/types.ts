@@ -17,3 +17,22 @@ export interface ApiErrorEnvelope {
     requestId: string | null;
   };
 }
+
+export interface MobileUser {
+  userId: number;
+  loginId: string;
+  displayName: string;
+}
+
+export interface AuthResponse {
+  user: MobileUser;
+  accessToken: string;
+  refreshToken?: string | null;
+  expiresIn: number;
+}
+
+export interface MeResponse {
+  mode: 'guest' | 'authed';
+  deviceId: string;
+  user: MobileUser | null;
+}

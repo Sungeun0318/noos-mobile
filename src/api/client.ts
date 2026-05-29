@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 
 import { appVersion } from '@/lib/appInfo';
 import { getOrCreateDeviceId } from '@/lib/deviceId';
+import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 const defaultTimeoutMs = 15_000;
@@ -71,13 +72,17 @@ export async function request<T>(path: string, init: RequestOptions = {}): Promi
   const ctrl = new AbortController();
   const timeout = setTimeout(() => ctrl.abort(), init.timeoutMs ?? defaultTimeoutMs);
   const headers = new Headers(init.headers);
+  const auth = useAuthStore.getState();
+  const deviceId = auth.deviceId || (await getOrCreateDeviceId());
   headers.set('content-type', 'application/json');
-  headers.set('x-device-id', getOrCreateDeviceId());
+  headers.set('x-device-id', deviceId);
   headers.set('x-app-platform', Platform.OS);
   headers.set('x-app-version', appVersion);
 
-  if (init.accessToken) {
-    headers.set('authorization', `Bearer ${init.accessToken}`);
+  const accessToken = init.accessToken ?? auth.accessToken;
+
+  if (accessToken) {
+    headers.set('authorization', `Bearer ${accessToken}`);
   }
 
   try {

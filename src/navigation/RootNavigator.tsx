@@ -5,13 +5,19 @@ import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { logger } from '@/lib/logger';
+import { subscribeNetInfo } from '@/lib/netinfo';
+import { noosTelemetry } from '@/lib/telemetry';
 import { SettingsStack } from '@/navigation/SettingsStack';
 import { SplashScreen } from '@/screens/splash/SplashScreen';
+import { useAuthStore } from '@/stores/authStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { color, space, type } from '@/theme';
 
 type RootStackParamList = {
   Splash: undefined;
   MainTabs: undefined;
+  'Settings/Home': undefined;
 };
 
 type MainTabsParamList = {
@@ -73,11 +79,57 @@ function MainTabs() {
   );
 }
 
-function SplashGate({ navigation }: { navigation: { replace: (screen: 'MainTabs') => void } }) {
-  useEffect(() => {
-    const timer = setTimeout(() => navigation.replace('MainTabs'), 1000);
+const log = logger.create('RootNavigator');
+const splashMaxMs = 1000;
 
-    return () => clearTimeout(timer);
+function delay(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function bootAction(name: string, action: () => Promise<void> | void) {
+  return Promise.resolve()
+    .then(action)
+    .catch((error: unknown) => {
+      log.warn('boot action failed', {
+        name,
+        code: error instanceof Error ? error.message : 'UNKNOWN',
+      });
+    });
+}
+
+function SplashGate({
+  navigation,
+}: {
+  navigation: { replace: (screen: 'MainTabs' | 'Settings/Home') => void };
+}) {
+  useEffect(() => {
+    let active = true;
+    const startedAt = Date.now();
+    const boot = Promise.all([
+      bootAction('auth.bootstrap', () => useAuthStore.getState().bootstrap()),
+      bootAction('settings.rehydrate', () => useSettingsStore.persist.rehydrate()),
+      bootAction('netinfo.subscribe', () => {
+        subscribeNetInfo();
+      }),
+      // FE-07/FE-11 범위: pending session polling resume / push token sync.
+    ]);
+
+    Promise.race([boot, delay(splashMaxMs)]).then(() => {
+      if (!active) {
+        return;
+      }
+
+      const ms = Date.now() - startedAt;
+      const mode = useAuthStore.getState().mode;
+      noosTelemetry.track('boot_complete', { ms, mode });
+      navigation.replace(useSettingsStore.getState().backendBaseUrl ? 'MainTabs' : 'Settings/Home');
+    });
+
+    return () => {
+      active = false;
+    };
   }, [navigation]);
 
   return <SplashScreen />;
@@ -101,6 +153,7 @@ export function RootNavigator() {
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="Splash" component={SplashGate} />
         <RootStack.Screen name="MainTabs" component={MainTabs} />
+        <RootStack.Screen name="Settings/Home" component={SettingsStack} />
       </RootStack.Navigator>
     </NavigationContainer>
   );

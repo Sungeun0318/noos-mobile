@@ -1,30 +1,30 @@
+import * as Crypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
 import { createMMKV } from 'react-native-mmkv';
 
-const storage = createMMKV({ id: 'noos.device.v1' });
+const legacyStorage = createMMKV({ id: 'noos.device.v1' });
 const deviceIdKey = 'deviceId';
 
-function randomHex(length: number) {
-  let out = '';
-
-  for (let i = 0; i < length; i += 1) {
-    out += Math.floor(Math.random() * 16).toString(16);
-  }
-
-  return out;
-}
-
 export function createDeviceId() {
-  return `dev_${randomHex(8)}-${randomHex(4)}-${randomHex(4)}-${randomHex(4)}-${randomHex(12)}`;
+  return `dev_${Crypto.randomUUID()}`;
 }
 
-export function getOrCreateDeviceId() {
-  const existing = storage.getString(deviceIdKey);
+export async function getOrCreateDeviceId() {
+  const existing = await SecureStore.getItemAsync(deviceIdKey);
 
   if (existing) {
     return existing;
   }
 
+  const legacy = legacyStorage.getString(deviceIdKey);
+
+  if (legacy) {
+    await SecureStore.setItemAsync(deviceIdKey, legacy);
+    legacyStorage.remove(deviceIdKey);
+    return legacy;
+  }
+
   const next = createDeviceId();
-  storage.set(deviceIdKey, next);
+  await SecureStore.setItemAsync(deviceIdKey, next);
   return next;
 }
