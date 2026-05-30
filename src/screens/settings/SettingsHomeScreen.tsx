@@ -1,12 +1,13 @@
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import type { SettingsStackParamList } from '@/navigation/SettingsStack';
-import { Row, Section, Toast } from '@/components/ui';
+import { Row, Section } from '@/components/ui';
 import { appVersion } from '@/lib/appInfo';
 import { noosTelemetry } from '@/lib/telemetry';
+import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { color, space, type } from '@/theme';
 
@@ -17,7 +18,8 @@ export function SettingsHomeScreen() {
   const backendBaseUrl = useSettingsStore((state) => state.backendBaseUrl);
   const simulationMode = useSettingsStore((state) => state.simulationMode);
   const setSimulationMode = useSettingsStore((state) => state.setSimulationMode);
-  const [toast, setToast] = useState<string | null>(null);
+  const mode = useAuthStore((state) => state.mode);
+  const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
     noosTelemetry.track('settings_view');
@@ -27,18 +29,30 @@ export function SettingsHomeScreen() {
     noosTelemetry.track('settings_row_tap', { row });
   }
 
-  function comingSoon(row: string) {
-    trackRow(row);
-    setToast('해당 화면은 이후 단계에서 추가됩니다');
+  function openAuth(screen: 'Auth/Login' | 'Auth/Signup') {
+    trackRow(screen === 'Auth/Login' ? 'login' : 'signup');
+    navigation.getParent()?.navigate('Auth', { screen });
   }
 
   return (
     <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-      {toast ? <Toast message={toast} variant="info" /> : null}
-
       <Section title="계정">
-        <Row label="로그인" onPress={() => comingSoon('login')} />
-        <Row label="회원가입" onPress={() => comingSoon('signup')} />
+        {mode === 'authed' && user ? (
+          <Row
+            hint={user.loginId}
+            label={user.displayName}
+            onPress={() => {
+              trackRow('account');
+              navigation.navigate('Settings/Account');
+            }}
+            value="계정"
+          />
+        ) : (
+          <>
+            <Row label="로그인" onPress={() => openAuth('Auth/Login')} />
+            <Row label="회원가입" onPress={() => openAuth('Auth/Signup')} />
+          </>
+        )}
       </Section>
 
       <Section title="연결">

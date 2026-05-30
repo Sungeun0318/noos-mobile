@@ -1,3 +1,4 @@
+import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -11,7 +12,12 @@ import { noosTelemetry } from '@/lib/telemetry';
 import { useAuthStore } from '@/stores/authStore';
 import { color, space, type } from '@/theme';
 
+type RootAuthNavigation = {
+  navigate: (screen: 'Auth', params: { screen: 'Auth/Signup' }) => void;
+};
+
 export function GuestPromptCard() {
+  const navigation = useNavigation<RootAuthNavigation>();
   const mode = useAuthStore((state) => state.mode);
   const [hiddenUntil, setHiddenUntil] = useState<number | null>(() => getGuestPromptHiddenUntil());
 
@@ -30,7 +36,7 @@ export function GuestPromptCard() {
   function handleSignupTap() {
     noosTelemetry.track('today_signup_prompt_tap');
     dismiss();
-    // TODO FE-10: navigate Auth/Signup when the auth modal stack exists.
+    navigation.navigate('Auth', { screen: 'Auth/Signup' });
   }
 
   return (
