@@ -112,7 +112,7 @@ export interface SessionError {
 
 export interface SessionAudio {
   audioId: string;
-  streamUrl: string;
+  streamUrl?: string;
   durationSec: number;
 }
 

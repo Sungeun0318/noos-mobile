@@ -9,24 +9,36 @@ const remoteAudioUrlPattern = /^https?:\/\//;
 
 export const sampleAudioSource: AudioSource = sampleAudioAsset;
 
+function getBackendBaseUrl() {
+  return useSettingsStore.getState().backendBaseUrl.replace(/\/+$/, '');
+}
+
 export function resolveAudioSource(
   activeSession: Pick<ActiveSession, 'audio'> | null,
   fallback: AudioSource = sampleAudioSource,
 ): AudioSource {
-  const streamUrl = activeSession?.audio?.streamUrl;
+  const audio = activeSession?.audio;
+  const streamUrl = audio?.streamUrl;
 
   if (streamUrl && remoteAudioUrlPattern.test(streamUrl)) {
     return { uri: streamUrl };
   }
 
   if (streamUrl?.startsWith('/')) {
-    const backendBaseUrl = useSettingsStore.getState().backendBaseUrl;
+    const backendBaseUrl = getBackendBaseUrl();
 
     if (backendBaseUrl) {
-      return { uri: `${backendBaseUrl.replace(/\/+$/, '')}${streamUrl}` };
+      return { uri: `${backendBaseUrl}${streamUrl}` };
     }
   }
 
-  // TODO: use real streamUrl (noosApi.audio.streamUrl) once backend wired.
+  if (audio?.audioId) {
+    const backendBaseUrl = getBackendBaseUrl();
+
+    if (backendBaseUrl) {
+      return { uri: `${backendBaseUrl}/api/mobile/audio/${audio.audioId}` };
+    }
+  }
+
   return fallback;
 }

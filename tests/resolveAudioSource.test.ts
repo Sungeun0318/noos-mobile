@@ -48,6 +48,38 @@ describe('resolveAudioSource', () => {
     ).toEqual({ uri: 'http://127.0.0.1:8080/api/mobile/audio/audio-test' });
   });
 
+  it('builds a backend audio URL from audioId when streamUrl is absent', () => {
+    useSettingsStore.getState().setBackendBaseUrl('http://127.0.0.1:8080/');
+
+    expect(
+      resolveAudioSource(
+        {
+          ...activeSession,
+          audio: {
+            audioId: 'audio-real',
+            durationSec: 30,
+          },
+        },
+        99,
+      ),
+    ).toEqual({ uri: 'http://127.0.0.1:8080/api/mobile/audio/audio-real' });
+  });
+
+  it('falls back to bundled sample audio for audioId without backendBaseUrl', () => {
+    expect(
+      resolveAudioSource(
+        {
+          ...activeSession,
+          audio: {
+            audioId: 'audio-real',
+            durationSec: 30,
+          },
+        },
+        99,
+      ),
+    ).toBe(99);
+  });
+
   it('falls back to bundled sample audio for mock URLs', () => {
     expect(
       resolveAudioSource(
