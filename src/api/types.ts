@@ -47,6 +47,24 @@ export interface MeasureSurvey {
 
 export interface MeasureRequest {
   survey: MeasureSurvey;
+  eeg?: MeasureEeg | null;
+}
+
+export interface MeasureEeg {
+  deviceType: string;
+  deviceId: string;
+  measuredAt: string;
+  measurementDurationSec: number;
+  sampleRateHz: number;
+  sampleCount: number;
+  signalQuality: number;
+  bands: {
+    delta: number;
+    theta: number;
+    alpha: number;
+    beta: number;
+    gamma: number;
+  };
 }
 
 export interface CurrentState {

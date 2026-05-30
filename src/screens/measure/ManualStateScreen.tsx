@@ -6,7 +6,9 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button, Card, TextInput, Toast } from '@/components/ui';
 import type { MeasureStackParamList } from '@/navigation/MeasureStack';
 import { noosTelemetry } from '@/lib/telemetry';
+import { shouldUseMuseMeasure } from '@/screens/measure/manualStateLogic';
 import { measureMock } from '@/screens/measure/measureMock';
+import { useDeviceStore } from '@/stores/deviceStore';
 import { useStateStore } from '@/stores/stateStore';
 import { color, radius, space, type } from '@/theme';
 
@@ -23,6 +25,7 @@ const sliderLabels: Record<SliderKey, string> = {
 
 export function ManualStateScreen() {
   const navigation = useNavigation<MeasureNavigation>();
+  const museStatus = useDeviceStore((state) => state.muse.status);
   const setSurveyDraft = useStateStore((state) => state.setSurveyDraft);
   const setFromMeasure = useStateStore((state) => state.setFromMeasure);
   const [survey, setSurvey] = useState<Record<SliderKey, number>>({
@@ -45,17 +48,24 @@ export function ManualStateScreen() {
       intentText: intentText.trim() || null,
     };
 
+    const withEeg = shouldUseMuseMeasure(museStatus);
     setSubmitting(true);
     setError(null);
     noosTelemetry.track('manual_state_submit', {
       focus: nextSurvey.focus,
       stress: nextSurvey.stress,
       fatigue: nextSurvey.fatigue,
-      withEeg: false,
+      withEeg,
     });
 
     try {
       setSurveyDraft(nextSurvey);
+
+      if (withEeg) {
+        navigation.navigate('Measure/MuseMeasure');
+        return;
+      }
+
       const response = await measureMock(nextSurvey);
       setFromMeasure(response);
       navigation.navigate('Measure/Result');
@@ -96,8 +106,18 @@ export function ManualStateScreen() {
         value={intentText}
       />
 
-      {/* TODO FE-13: show MuseAvailabilityHint and EEG path when deviceStore exists. */}
-      <Button fullWidth label="이 결과로 진행" loading={submitting} onPress={submit} size="lg" />
+      {shouldUseMuseMeasure(museStatus) ? (
+        <Card level={2} padding="lg">
+          <Text style={styles.description}>Muse가 연결됐어. 이어서 60초 EEG 측정으로 정확도를 높일 수 있어.</Text>
+        </Card>
+      ) : null}
+      <Button
+        fullWidth
+        label={shouldUseMuseMeasure(museStatus) ? '다음' : '이 결과로 진행'}
+        loading={submitting}
+        onPress={submit}
+        size="lg"
+      />
     </ScrollView>
   );
 }
