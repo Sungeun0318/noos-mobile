@@ -7,6 +7,7 @@ import { Button, Card } from '@/components/ui';
 import { GuestPromptCard } from '@/components/GuestPromptCard';
 import { noosTelemetry } from '@/lib/telemetry';
 import { useHealth } from '@/queries/useHealth';
+import { usePollSession } from '@/queries/usePollSession';
 import { getTodayMockData, type TodayMockData } from '@/screens/today/mockData';
 import { useAuthStore } from '@/stores/authStore';
 import { useSessionStore, type PendingSession } from '@/stores/sessionStore';
@@ -196,41 +197,90 @@ function PendingSessionsBlock({ sessions }: { sessions: PendingSession[] }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>생성 중인 세션</Text>
-      {sessions.map((session) => {
-        const progress = session.progress?.percent ?? pendingStatusProgress(session.status);
-        const etaSec = session.progress?.etaSec ?? session.estimatedReadyInSec;
-
-        return (
-          <Card key={session.sessionId} level={2} padding="lg" planetTint={session.planet}>
-            <View style={styles.pendingContent}>
-              <View style={styles.pendingHeader}>
-                <Text style={styles.pendingTitle}>
-                  {PLANETS[session.planet].title} · {formatDuration(session.durationSec)} ·{' '}
-                  {pendingStatusLabel(session.status)}
-                </Text>
-                <Text style={styles.pendingEta}>{formatEta(etaSec)}</Text>
-              </View>
-              <View style={styles.progressTrack}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      backgroundColor: PLANET_COLORS[session.planet].secondary,
-                      width: `${Math.round(progress * 100)}%`,
-                    },
-                  ]}
-                />
-              </View>
-              {session.error ? <Text style={styles.pendingEta}>{session.error.message}</Text> : null}
-            </View>
-          </Card>
-        );
-      })}
+      {[...sessions].sort((a, b) => b.enqueuedAt - a.enqueuedAt).map((session) => (
+        <PendingSessionCard key={session.sessionId} session={session} />
+      ))}
     </View>
   );
 }
 
+function PendingSessionCard({ session }: { session: PendingSession }) {
+  const removePending = useSessionStore((state) => state.removePending);
+  const progress = session.progress?.percent ?? pendingStatusProgress(session.status);
+  const etaSec = session.progress?.etaSec ?? session.estimatedReadyInSec;
+  const query = usePollSession(session);
+
+  useEffect(() => {
+    noosTelemetry.track('pending_card_view', { status: session.status });
+  }, [session.status]);
+
+  function playReady() {
+    noosTelemetry.track('pending_ready_play_tap', {
+      planet: session.planet,
+      sessionId: session.sessionId,
+    });
+    // TODO FE-08: promoteToActive + navigate Player when Player exists.
+  }
+
+  function retryLater() {
+    removePending(session.sessionId);
+    // TODO FE-XX: re-enqueue from PlanetSelect/draft if inline retry becomes required.
+  }
+
+  return (
+    <Card level={2} padding="lg" planetTint={session.planet}>
+      <View style={styles.pendingContent}>
+        <View style={styles.pendingHeader}>
+          <Text style={styles.pendingTitle}>
+            {PLANETS[session.planet].title} · {formatDuration(session.durationSec)} ·{' '}
+            {pendingStatusLabel(session.status)}
+          </Text>
+          <Text style={styles.pendingEta}>
+            {query.isError ? '연결 확인 필요 · ' : ''}
+            {formatEta(etaSec, session.status)}
+          </Text>
+        </View>
+        {session.status === 'ready' ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={playReady}
+            style={[
+              styles.readyButton,
+              { backgroundColor: PLANET_COLORS[session.planet].secondary },
+            ]}
+          >
+            <Text style={styles.readyButtonText}>▶︎ 재생하기</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  backgroundColor:
+                    session.status === 'failed'
+                      ? color.state.danger
+                      : PLANET_COLORS[session.planet].secondary,
+                  width: `${Math.round(progress * 100)}%`,
+                },
+              ]}
+            />
+          </View>
+        )}
+        {session.error ? <Text style={styles.pendingEta}>{session.error.message}</Text> : null}
+        {session.status === 'failed' ? (
+          <Button label="다시 시도" onPress={retryLater} size="sm" variant="secondary" />
+        ) : null}
+      </View>
+    </Card>
+  );
+}
+
 function pendingStatusLabel(status: PendingSession['status']) {
+  if (status === 'ready') {
+    return '준비 완료';
+  }
+
   if (status === 'generating') {
     return '생성 중';
   }
@@ -243,12 +293,12 @@ function pendingStatusLabel(status: PendingSession['status']) {
 }
 
 function pendingStatusProgress(status: PendingSession['status']) {
-  if (status === 'generating') {
-    return 0.35;
+  if (status === 'ready' || status === 'failed') {
+    return 1;
   }
 
-  if (status === 'failed') {
-    return 1;
+  if (status === 'generating') {
+    return 0.35;
   }
 
   return 0;
@@ -258,7 +308,15 @@ function formatDuration(durationSec: number) {
   return `${Math.round(durationSec / 60)}분 트랙`;
 }
 
-function formatEta(etaSec: number | null | undefined) {
+function formatEta(etaSec: number | null | undefined, status?: PendingSession['status']) {
+  if (status === 'ready') {
+    return '준비 완료';
+  }
+
+  if (status === 'failed') {
+    return '확인 필요';
+  }
+
   if (!etaSec) {
     return '대기 중';
   }
@@ -428,6 +486,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: space.lg,
+  },
+  readyButton: {
+    alignItems: 'center',
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    paddingVertical: space.md,
+  },
+  readyButtonText: {
+    color: color.text.inverse,
+    fontFamily: type.bodyMd.family,
+    fontSize: type.bodyMd.size,
+    fontWeight: type.bodyMd.weight,
+    lineHeight: type.bodyMd.lineHeight,
   },
   section: {
     gap: space.sm,
