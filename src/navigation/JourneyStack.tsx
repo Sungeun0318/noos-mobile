@@ -1,10 +1,12 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { PlanetSelectScreen } from '@/screens/journey/PlanetSelectScreen';
+import { PlayerScreen } from '@/screens/journey/PlayerScreen';
 import { color } from '@/theme';
 
 export type JourneyStackParamList = {
   'Journey/PlanetSelect': undefined;
+  'Journey/Player': { sessionId: string };
 };
 
 const Stack = createNativeStackNavigator<JourneyStackParamList>();
@@ -23,6 +25,11 @@ export function JourneyStack() {
         component={PlanetSelectScreen}
         name="Journey/PlanetSelect"
         options={{ title: 'Planet Select' }}
+      />
+      <Stack.Screen
+        component={PlayerScreen}
+        name="Journey/Player"
+        options={{ title: 'Player' }}
       />
     </Stack.Navigator>
   );
