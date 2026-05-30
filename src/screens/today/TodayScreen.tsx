@@ -8,8 +8,12 @@ import { GuestPromptCard } from '@/components/GuestPromptCard';
 import { noosTelemetry } from '@/lib/telemetry';
 import { useHealth } from '@/queries/useHealth';
 import { usePollSession } from '@/queries/usePollSession';
-import { getTodayMockData, type TodayMockData } from '@/screens/today/mockData';
 import { useAuthStore } from '@/stores/authStore';
+import {
+  latestHistorySession,
+  useHistoryStore,
+  type HistorySession,
+} from '@/stores/historyStore';
 import { useSessionStore, type PendingSession } from '@/stores/sessionStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useStateStore } from '@/stores/stateStore';
@@ -18,7 +22,10 @@ import { color, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
 type TabNavigation = {
   navigate: (
     screen: 'Measure' | 'Journey' | 'History' | 'Settings',
-    params?: { screen: 'Journey/Player'; params: { sessionId: string } },
+    params?: {
+      screen: 'Journey/Player' | 'History/Detail';
+      params: { sessionId: string };
+    },
   ) => void;
 };
 
@@ -33,7 +40,7 @@ export function TodayScreen() {
   const source = useStateStore((state) => state.source);
   const recommendedPlanet = useStateStore((state) => state.recommendedPlanet);
   const pendingSessions = useSessionStore((state) => state.pending);
-  const mockData = getTodayMockData();
+  const recentSession = useHistoryStore((state) => latestHistorySession(state.sessions));
 
   useEffect(() => {
     noosTelemetry.track('today_view');
@@ -76,7 +83,7 @@ export function TodayScreen() {
       <RecommendedPlanetCard planet={recommendedPlanet} />
       <PendingSessionsBlock sessions={pendingSessions} />
       <Button fullWidth label="지금 세션 시작" onPress={goStartSession} size="lg" />
-      <RecentSessionMini data={mockData} />
+      <RecentSessionMini session={recentSession} />
     </ScrollView>
   );
 }
@@ -192,7 +199,6 @@ function RecommendedPlanetCard({ planet: measuredPlanet }: { planet: keyof typeo
 }
 
 function PendingSessionsBlock({ sessions }: { sessions: PendingSession[] }) {
-  // TODO FE-07: update pending progress/status from polling.
   if (sessions.length === 0) {
     return null;
   }
@@ -333,8 +339,10 @@ function formatEta(etaSec: number | null | undefined, status?: PendingSession['s
   return `약 ${Math.ceil(etaSec / 60)}분`;
 }
 
-function RecentSessionMini({ data }: { data: TodayMockData }) {
-  if (!data.recentSession) {
+function RecentSessionMini({ session }: { session: HistorySession | null }) {
+  const navigation = useNavigation<TabNavigation>();
+
+  if (!session) {
     return null;
   }
 
@@ -342,21 +350,33 @@ function RecentSessionMini({ data }: { data: TodayMockData }) {
     <Pressable
       accessibilityRole="button"
       onPress={() => {
-        // TODO FE-12: navigate HistoryDetail when the detail route exists.
+        navigation.navigate('History', {
+          params: { sessionId: session.sessionId },
+          screen: 'History/Detail',
+        });
       }}
       style={({ pressed }) => pressed && styles.pressed}
     >
-      <Card level={1} padding="lg" planetTint={data.recentSession.planet}>
+      <Card level={1} padding="lg" planetTint={session.planet}>
         <View style={styles.recentRow}>
           <View style={styles.cardStack}>
             <Text style={styles.label}>최근 세션</Text>
-            <Text style={styles.recentTitle}>{data.recentSession.title}</Text>
+            <Text style={styles.recentTitle}>
+              {session.summary?.title ?? PLANETS[session.planet].trackName}
+            </Text>
           </View>
-          <Text style={styles.pendingEta}>{data.recentSession.completedAtLabel}</Text>
+          <Text style={styles.pendingEta}>{formatRecentCompletedAt(session.completedAt)}</Text>
         </View>
       </Card>
     </Pressable>
   );
+}
+
+function formatRecentCompletedAt(value: string) {
+  return new Date(value).toLocaleDateString('ko-KR', {
+    day: 'numeric',
+    month: 'short',
+  });
 }
 
 const orbSize = space['5xl'];

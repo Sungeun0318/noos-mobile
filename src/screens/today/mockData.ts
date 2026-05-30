@@ -14,17 +14,9 @@ export interface TodayRecommendedPlanet {
   subtitle: string;
 }
 
-export interface TodayRecentSession {
-  id: string;
-  title: string;
-  planet: PlanetId;
-  completedAtLabel: string;
-}
-
 export interface TodayMockData {
   state: TodayStateSummary | null;
   recommendedPlanet: TodayRecommendedPlanet;
-  recentSession: TodayRecentSession | null;
 }
 
 export const todayMockVariant: TodayMockVariant = 'filled';
@@ -40,12 +32,6 @@ const filledMock: TodayMockData = {
     title: 'Mars',
     subtitle: '시작 에너지를 끌어올리기 좋은 상태예요',
   },
-  recentSession: {
-    id: 'mock-recent-neptune',
-    title: 'Neptune Drift',
-    planet: 'neptune',
-    completedAtLabel: '어제 완료',
-  },
 };
 
 const emptyMock: TodayMockData = {
@@ -55,7 +41,6 @@ const emptyMock: TodayMockData = {
     title: 'Neptune',
     subtitle: '측정 후 더 정확해져요',
   },
-  recentSession: null,
 };
 
 export function getTodayMockData(variant: TodayMockVariant = todayMockVariant) {

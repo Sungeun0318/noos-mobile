@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { StateAxisChart } from '@/components/StateAxisChart';
 import { Button, Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import { useStateStore } from '@/stores/stateStore';
@@ -12,15 +13,6 @@ type ResultNavigation = {
   getParent: () => { navigate: (screen: 'Journey' | 'Measure') => void } | undefined;
   navigate: (screen: 'Measure/Manual') => void;
 };
-
-const axisLabels = {
-  focus_readiness: '집중 준비',
-  stress_load: '스트레스',
-  fatigue_risk: '피로 위험',
-  relaxation_level: '이완',
-  cortical_arousal: '각성',
-  mental_workload: '인지 부하',
-} as const;
 
 export function MeasureResultScreen() {
   const navigation = useNavigation<ResultNavigation>();
@@ -113,30 +105,6 @@ function SourceBadge({ source }: { source: string | null }) {
   );
 }
 
-function StateAxisChart({ values }: { values: NonNullable<ReturnType<typeof useStateStore.getState>['currentState']> }) {
-  return (
-    <Card level={1} padding="lg">
-      <View style={styles.axisList}>
-        {Object.entries(axisLabels).map(([key, label]) => {
-          const value = values[key as keyof typeof axisLabels];
-
-          return (
-            <View key={key} style={styles.axisRow}>
-              <View style={styles.axisHeader}>
-                <Text style={styles.axisLabel}>{label}</Text>
-                <Text style={styles.axisValue}>{Math.round(value * 100)}%</Text>
-              </View>
-              <View style={styles.axisTrack}>
-                <View style={[styles.axisFill, { width: `${Math.round(value * 100)}%` }]} />
-              </View>
-            </View>
-          );
-        })}
-      </View>
-    </Card>
-  );
-}
-
 function RecommendedPlanetCard({ planet }: { planet: PlanetId }) {
   const meta = PLANETS[planet];
 
@@ -201,45 +169,6 @@ const styles = StyleSheet.create({
   },
   alternates: {
     gap: space.sm,
-  },
-  axisFill: {
-    backgroundColor: color.brand.accent,
-    borderRadius: radius.pill,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    top: 0,
-  },
-  axisHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  axisLabel: {
-    color: color.text.secondary,
-    fontFamily: type.small.family,
-    fontSize: type.small.size,
-    fontWeight: type.small.weight,
-    lineHeight: type.small.lineHeight,
-  },
-  axisList: {
-    gap: space.md,
-  },
-  axisRow: {
-    gap: space.xs,
-  },
-  axisTrack: {
-    backgroundColor: color.bg.elevated,
-    borderRadius: radius.pill,
-    height: space.sm,
-    overflow: 'hidden',
-  },
-  axisValue: {
-    color: color.text.tertiary,
-    fontFamily: type.tabular.family,
-    fontSize: type.tabular.size,
-    fontWeight: type.tabular.weight,
-    lineHeight: type.tabular.lineHeight,
   },
   badgeRow: {
     alignItems: 'center',

@@ -2,13 +2,14 @@ import { NavigationContainer, DarkTheme, type NavigatorScreenParams } from '@rea
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { logger } from '@/lib/logger';
 import { subscribeNetInfo } from '@/lib/netinfo';
 import { noosTelemetry } from '@/lib/telemetry';
 import { AuthStack, type AuthStackParamList } from '@/navigation/AuthStack';
+import { HistoryStack } from '@/navigation/HistoryStack';
 import { JourneyStack } from '@/navigation/JourneyStack';
 import { MeasureStack } from '@/navigation/MeasureStack';
 import { SettingsStack } from '@/navigation/SettingsStack';
@@ -44,14 +45,6 @@ const tabLabels: Array<keyof MainTabsParamList> = [
   'Settings',
 ];
 
-function PlaceholderScreen({ label }: { label: string }) {
-  return (
-    <View style={styles.placeholder}>
-      <Text style={styles.placeholderText}>{label}</Text>
-    </View>
-  );
-}
-
 function MainTabs() {
   const insets = useSafeAreaInsets();
 
@@ -84,13 +77,11 @@ function MainTabs() {
           return <Tabs.Screen component={JourneyStack} key={label} name={label} />;
         }
 
-        return label === 'Settings' ? (
-          <Tabs.Screen component={SettingsStack} key={label} name={label} />
-        ) : (
-          <Tabs.Screen key={label} name={label}>
-            {() => <PlaceholderScreen label={label} />}
-          </Tabs.Screen>
-        );
+        if (label === 'History') {
+          return <Tabs.Screen component={HistoryStack} key={label} name={label} />;
+        }
+
+        return <Tabs.Screen component={SettingsStack} key={label} name={label} />;
       })}
     </Tabs.Navigator>
   );
@@ -182,21 +173,6 @@ export function RootNavigator() {
 }
 
 const styles = StyleSheet.create({
-  placeholder: {
-    alignItems: 'center',
-    backgroundColor: color.bg.base,
-    flex: 1,
-    justifyContent: 'center',
-    padding: space.xl,
-  },
-  placeholderText: {
-    color: color.text.primary,
-    fontFamily: type.h1.family,
-    fontSize: type.h1.size,
-    fontWeight: type.h1.weight,
-    letterSpacing: 0,
-    lineHeight: type.h1.lineHeight,
-  },
   tabBar: {
     backgroundColor: color.bg.surface,
     borderTopColor: color.border.subtle,
