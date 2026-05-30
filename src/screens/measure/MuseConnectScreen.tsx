@@ -25,6 +25,8 @@ export function MuseConnectScreen() {
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hasMuseCandidate = devices.some((device) => device.isMuseCandidate);
+  const [showDiagnosticDevices, setShowDiagnosticDevices] = useState(false);
+  const visibleDevices = getVisibleDevices(devices, showDiagnosticDevices);
 
   async function scan() {
     setScanning(true);
@@ -125,8 +127,17 @@ export function MuseConnectScreen() {
         </Card>
       ) : null}
 
+      {!simulationMode && devices.length > 0 && hasMuseCandidate ? (
+        <Button
+          label={showDiagnosticDevices ? '진단용 BLE 전체 숨기기' : '진단용 BLE 전체 보기'}
+          onPress={() => setShowDiagnosticDevices((value) => !value)}
+          size="sm"
+          variant="secondary"
+        />
+      ) : null}
+
       <View style={styles.stack}>
-        {devices.map((device) => (
+        {visibleDevices.map((device) => (
           <Card key={device.deviceId} level={2} padding="lg">
             <View style={styles.deviceRow}>
               <View style={styles.switchText}>
@@ -154,6 +165,16 @@ export function MuseConnectScreen() {
       </View>
     </ScrollView>
   );
+}
+
+function getVisibleDevices(devices: SimulatedMuseDevice[], showDiagnosticDevices: boolean) {
+  const museCandidates = devices.filter((device) => device.isMuseCandidate);
+
+  if (showDiagnosticDevices || museCandidates.length === 0) {
+    return devices;
+  }
+
+  return museCandidates;
 }
 
 function mapMuseError(error: unknown, fallbackCode: 'SCAN_FAILED' | 'CONNECT_FAILED') {
