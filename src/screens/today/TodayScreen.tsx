@@ -174,6 +174,7 @@ function StateCard({
         <Text style={styles.bodyText}>
           {formatMeasuredAt(measuredAt) ?? '방금'} · {sourceLabel(source)}
         </Text>
+        <Button label="다시 측정하기" onPress={onMeasure} variant="secondary" />
       </View>
     </Card>
   );
