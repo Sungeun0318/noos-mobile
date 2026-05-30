@@ -74,3 +74,25 @@ export interface MeasureResponse {
   };
   measuredAt: string;
 }
+
+export interface EnqueueSessionRequest {
+  planet: string;
+  durationSec: number;
+  measurementId?: string | null;
+  currentState?: CurrentState | null;
+  stateLabel?: string | null;
+  intentText?: string | null;
+  source?: MeasureSource | null;
+  lightingEnabled: boolean;
+  idempotencyKey: string;
+}
+
+export interface EnqueueSessionResponse {
+  sessionId: string;
+  status: 'queued';
+  planet: string;
+  durationSec: number;
+  estimatedReadyInSec: number;
+  pollAfterMs: number;
+  createdAt: string;
+}

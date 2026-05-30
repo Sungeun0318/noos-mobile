@@ -7,8 +7,9 @@ import { Button, Card } from '@/components/ui';
 import { GuestPromptCard } from '@/components/GuestPromptCard';
 import { noosTelemetry } from '@/lib/telemetry';
 import { useHealth } from '@/queries/useHealth';
-import { getTodayMockData, type TodayMockData, type TodayPendingSession } from '@/screens/today/mockData';
+import { getTodayMockData, type TodayMockData } from '@/screens/today/mockData';
 import { useAuthStore } from '@/stores/authStore';
+import { useSessionStore, type PendingSession } from '@/stores/sessionStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useStateStore } from '@/stores/stateStore';
 import { color, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
@@ -27,6 +28,7 @@ export function TodayScreen() {
   const measuredAt = useStateStore((state) => state.measuredAt);
   const source = useStateStore((state) => state.source);
   const recommendedPlanet = useStateStore((state) => state.recommendedPlanet);
+  const pendingSessions = useSessionStore((state) => state.pending);
   const mockData = getTodayMockData();
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export function TodayScreen() {
       <GuestPromptCard />
       <StateCard measuredAt={measuredAt} onMeasure={goMeasure} source={source} stateLabel={stateLabel} />
       <RecommendedPlanetCard planet={recommendedPlanet} />
-      <PendingSessionsBlock sessions={mockData.pendingSessions} />
+      <PendingSessionsBlock sessions={pendingSessions} />
       <Button fullWidth label="지금 세션 시작" onPress={goStartSession} size="lg" />
       <RecentSessionMini data={mockData} />
     </ScrollView>
@@ -185,8 +187,8 @@ function RecommendedPlanetCard({ planet: measuredPlanet }: { planet: keyof typeo
   );
 }
 
-function PendingSessionsBlock({ sessions }: { sessions: TodayPendingSession[] }) {
-  // TODO FE-07: replace mock sessions with sessionStore.pending and usePollSession.
+function PendingSessionsBlock({ sessions }: { sessions: PendingSession[] }) {
+  // TODO FE-07: update pending progress/status from polling.
   if (sessions.length === 0) {
     return null;
   }
@@ -194,31 +196,74 @@ function PendingSessionsBlock({ sessions }: { sessions: TodayPendingSession[] })
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>생성 중인 세션</Text>
-      {sessions.map((session) => (
-        <Card key={session.id} level={2} padding="lg" planetTint={session.planet}>
-          <View style={styles.pendingContent}>
-            <View style={styles.pendingHeader}>
-              <Text style={styles.pendingTitle}>
-                {session.planetTitle} · {session.durationLabel} · {session.statusLabel}
-              </Text>
-              <Text style={styles.pendingEta}>{session.etaLabel}</Text>
+      {sessions.map((session) => {
+        const progress = session.progress?.percent ?? pendingStatusProgress(session.status);
+        const etaSec = session.progress?.etaSec ?? session.estimatedReadyInSec;
+
+        return (
+          <Card key={session.sessionId} level={2} padding="lg" planetTint={session.planet}>
+            <View style={styles.pendingContent}>
+              <View style={styles.pendingHeader}>
+                <Text style={styles.pendingTitle}>
+                  {PLANETS[session.planet].title} · {formatDuration(session.durationSec)} ·{' '}
+                  {pendingStatusLabel(session.status)}
+                </Text>
+                <Text style={styles.pendingEta}>{formatEta(etaSec)}</Text>
+              </View>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      backgroundColor: PLANET_COLORS[session.planet].secondary,
+                      width: `${Math.round(progress * 100)}%`,
+                    },
+                  ]}
+                />
+              </View>
+              {session.error ? <Text style={styles.pendingEta}>{session.error.message}</Text> : null}
             </View>
-            <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    backgroundColor: PLANET_COLORS[session.planet].secondary,
-                    width: `${Math.round(session.progress * 100)}%`,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-        </Card>
-      ))}
+          </Card>
+        );
+      })}
     </View>
   );
+}
+
+function pendingStatusLabel(status: PendingSession['status']) {
+  if (status === 'generating') {
+    return '생성 중';
+  }
+
+  if (status === 'failed') {
+    return '실패';
+  }
+
+  return '대기 중';
+}
+
+function pendingStatusProgress(status: PendingSession['status']) {
+  if (status === 'generating') {
+    return 0.35;
+  }
+
+  if (status === 'failed') {
+    return 1;
+  }
+
+  return 0;
+}
+
+function formatDuration(durationSec: number) {
+  return `${Math.round(durationSec / 60)}분 트랙`;
+}
+
+function formatEta(etaSec: number | null | undefined) {
+  if (!etaSec) {
+    return '대기 중';
+  }
+
+  return `약 ${Math.ceil(etaSec / 60)}분`;
 }
 
 function RecentSessionMini({ data }: { data: TodayMockData }) {
