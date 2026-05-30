@@ -39,12 +39,19 @@ export async function sessionPollMock(
   const completedAt = status === 'ready' ? new Date(session.enqueuedAt + readyMs).toISOString() : null;
 
   return {
-    audio: status === 'ready' ? { url: `mock://audio/${session.sessionId}` } : null,
+    audio:
+      status === 'ready'
+        ? {
+            audioId: `audio_mock_${session.sessionId}`,
+            durationSec: session.durationSec,
+            streamUrl: `mock://audio/${session.sessionId}`,
+          }
+        : null,
     completedAt,
     createdAt,
     durationSec: session.durationSec,
     error: null,
-    lighting: status === 'ready' ? { enabled: false } : null,
+    lighting: status === 'ready' ? { active: false, jobId: null } : null,
     planet: PLANETS[session.planet].title,
     progress:
       status === 'ready'
@@ -57,6 +64,12 @@ export async function sessionPollMock(
     sessionId: session.sessionId,
     startedAt,
     status,
-    summary: status === 'ready' ? { title: `${PLANETS[session.planet].trackName} ready` } : null,
+    summary:
+      status === 'ready'
+        ? {
+            description: PLANETS[session.planet].description,
+            title: PLANETS[session.planet].trackName,
+          }
+        : null,
   };
 }

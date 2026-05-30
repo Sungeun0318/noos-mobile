@@ -51,6 +51,16 @@ describe('sessionPollMock', () => {
     expect(response).toMatchObject({
       error: null,
       progress: null,
+      audio: {
+        audioId: 'audio_mock_session-poll-test',
+        streamUrl: 'mock://audio/session-poll-test',
+      },
+      lighting: {
+        active: false,
+      },
+      summary: {
+        title: 'Mars Ignite',
+      },
       status: 'ready',
     });
     expect(response.audio).not.toBeNull();

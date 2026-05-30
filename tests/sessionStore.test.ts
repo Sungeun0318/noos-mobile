@@ -69,6 +69,63 @@ describe('sessionStore', () => {
     expect(useSessionStore.getState().pending).toEqual([]);
   });
 
+  it('promotes a ready pending session to active with audio and summary payloads', () => {
+    useSessionStore.getState().addPending({
+      ...basePending,
+      audio: {
+        audioId: 'audio-test',
+        durationSec: 600,
+        streamUrl: 'mock://audio/session-test-1',
+      },
+      lighting: {
+        active: false,
+        jobId: null,
+      },
+      status: 'ready',
+      summary: {
+        description: 'dummy summary',
+        title: 'Mars Ignite',
+      },
+    });
+
+    useSessionStore.getState().promoteToActive(basePending.sessionId);
+
+    expect(useSessionStore.getState().pending).toHaveLength(0);
+    expect(useSessionStore.getState().active).toMatchObject({
+      audio: {
+        audioId: 'audio-test',
+        streamUrl: 'mock://audio/session-test-1',
+      },
+      lighting: {
+        active: false,
+      },
+      sessionId: basePending.sessionId,
+      status: 'playing',
+      summary: {
+        title: 'Mars Ignite',
+      },
+    });
+  });
+
+  it('sets active status and clears active session', () => {
+    useSessionStore.getState().setActive({
+      audio: null,
+      durationSec: 300,
+      lighting: null,
+      planet: 'neptune',
+      sessionId: 'session-active',
+      startedAt: 1_000,
+      status: 'playing',
+      summary: null,
+    });
+
+    useSessionStore.getState().setStatus('paused');
+    expect(useSessionStore.getState().active?.status).toBe('paused');
+
+    useSessionStore.getState().clearActive();
+    expect(useSessionStore.getState().active).toBeNull();
+  });
+
   it('guards the pending concurrency boundary at three sessions', () => {
     expect(canAddPendingSession(2)).toBe(true);
     expect(canAddPendingSession(3)).toBe(false);

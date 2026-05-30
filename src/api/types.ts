@@ -110,15 +110,31 @@ export interface SessionError {
   message: string;
 }
 
+export interface SessionAudio {
+  audioId: string;
+  streamUrl: string;
+  durationSec: number;
+}
+
+export interface SessionLighting {
+  active: boolean;
+  jobId: string | null;
+}
+
+export interface SessionSummary {
+  title: string;
+  description: string;
+}
+
 export interface SessionGetResponse {
   sessionId: string;
   status: SessionStatus;
   planet: string;
   durationSec: number;
   progress: SessionProgress | null;
-  audio: Record<string, unknown> | null;
-  lighting: Record<string, unknown> | null;
-  summary: Record<string, unknown> | null;
+  audio: SessionAudio | null;
+  lighting: SessionLighting | null;
+  summary: SessionSummary | null;
   error: SessionError | null;
   createdAt: string;
   startedAt: string | null;

@@ -16,7 +16,10 @@ import { useStateStore } from '@/stores/stateStore';
 import { color, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
 
 type TabNavigation = {
-  navigate: (screen: 'Measure' | 'Journey' | 'History' | 'Settings') => void;
+  navigate: (
+    screen: 'Measure' | 'Journey' | 'History' | 'Settings',
+    params?: { screen: 'Journey/Player'; params: { sessionId: string } },
+  ) => void;
 };
 
 export function TodayScreen() {
@@ -205,6 +208,8 @@ function PendingSessionsBlock({ sessions }: { sessions: PendingSession[] }) {
 }
 
 function PendingSessionCard({ session }: { session: PendingSession }) {
+  const navigation = useNavigation<TabNavigation>();
+  const promoteToActive = useSessionStore((state) => state.promoteToActive);
   const removePending = useSessionStore((state) => state.removePending);
   const progress = session.progress?.percent ?? pendingStatusProgress(session.status);
   const etaSec = session.progress?.etaSec ?? session.estimatedReadyInSec;
@@ -215,11 +220,15 @@ function PendingSessionCard({ session }: { session: PendingSession }) {
   }, [session.status]);
 
   function playReady() {
-    noosTelemetry.track('pending_ready_play_tap', {
-      planet: session.planet,
+    promoteToActive(session.sessionId);
+    noosTelemetry.track('pending_card_tap_play', {
+      ms_since_enqueue: Date.now() - session.enqueuedAt,
       sessionId: session.sessionId,
     });
-    // TODO FE-08: promoteToActive + navigate Player when Player exists.
+    navigation.navigate('Journey', {
+      params: { sessionId: session.sessionId },
+      screen: 'Journey/Player',
+    });
   }
 
   function retryLater() {

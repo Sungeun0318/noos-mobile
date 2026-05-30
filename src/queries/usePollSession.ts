@@ -66,10 +66,13 @@ export function usePollSession(session: PendingSession) {
     }
 
     updatePending(session.sessionId, {
+      audio: data.audio,
       error: data.error ?? undefined,
       estimatedReadyInSec: data.progress?.etaSec ?? null,
+      lighting: data.lighting,
       progress: toStoreProgress(data),
       status: data.status === 'completed' ? 'ready' : data.status,
+      summary: data.summary,
     });
   }, [data, session.sessionId, updatePending]);
 
