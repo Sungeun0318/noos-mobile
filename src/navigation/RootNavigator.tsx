@@ -1,4 +1,4 @@
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme, type NavigatorScreenParams } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect } from 'react';
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '@/lib/logger';
 import { subscribeNetInfo } from '@/lib/netinfo';
 import { noosTelemetry } from '@/lib/telemetry';
+import { AuthStack, type AuthStackParamList } from '@/navigation/AuthStack';
 import { JourneyStack } from '@/navigation/JourneyStack';
 import { MeasureStack } from '@/navigation/MeasureStack';
 import { SettingsStack } from '@/navigation/SettingsStack';
@@ -21,6 +22,7 @@ type RootStackParamList = {
   Splash: undefined;
   MainTabs: undefined;
   'Settings/Home': undefined;
+  Auth: NavigatorScreenParams<AuthStackParamList>;
 };
 
 type MainTabsParamList = {
@@ -169,6 +171,11 @@ export function RootNavigator() {
         <RootStack.Screen name="Splash" component={SplashGate} />
         <RootStack.Screen name="MainTabs" component={MainTabs} />
         <RootStack.Screen name="Settings/Home" component={SettingsStack} />
+        <RootStack.Screen
+          name="Auth"
+          component={AuthStack}
+          options={{ presentation: 'modal' }}
+        />
       </RootStack.Navigator>
     </NavigationContainer>
   );
