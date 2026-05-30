@@ -1,24 +1,25 @@
 import type { ImageSourcePropType } from 'react-native';
 
+import earth from '../../assets/planets/earth.png';
+import jupiter from '../../assets/planets/jupiter.png';
+import mars from '../../assets/planets/mars.png';
+import mercury from '../../assets/planets/mercury.png';
+import neptune from '../../assets/planets/neptune.png';
+import pluto from '../../assets/planets/pluto.png';
+import saturn from '../../assets/planets/saturn.png';
+import uranus from '../../assets/planets/uranus.png';
+import venus from '../../assets/planets/venus.png';
+
 import type { PlanetId } from './planets';
 
-declare const require: (path: string) => ImageSourcePropType;
-
-const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-const isVitest = env?.VITEST === 'true';
-
-function testAsset(name: PlanetId): ImageSourcePropType {
-  return { uri: `test-planet-${name}` };
-}
-
 export const PLANET_IMAGES: Record<PlanetId, ImageSourcePropType> = {
-  earth: isVitest ? testAsset('earth') : require('../../assets/planets/earth.png'),
-  jupiter: isVitest ? testAsset('jupiter') : require('../../assets/planets/jupiter.png'),
-  mars: isVitest ? testAsset('mars') : require('../../assets/planets/mars.png'),
-  mercury: isVitest ? testAsset('mercury') : require('../../assets/planets/mercury.png'),
-  neptune: isVitest ? testAsset('neptune') : require('../../assets/planets/neptune.png'),
-  pluto: isVitest ? testAsset('pluto') : require('../../assets/planets/pluto.png'),
-  saturn: isVitest ? testAsset('saturn') : require('../../assets/planets/saturn.png'),
-  uranus: isVitest ? testAsset('uranus') : require('../../assets/planets/uranus.png'),
-  venus: isVitest ? testAsset('venus') : require('../../assets/planets/venus.png'),
+  earth,
+  jupiter,
+  mars,
+  mercury,
+  neptune,
+  pluto,
+  saturn,
+  uranus,
+  venus,
 };
