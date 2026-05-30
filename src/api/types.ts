@@ -149,10 +149,17 @@ export interface SessionGetResponse {
   status: SessionStatus;
   planet: string;
   durationSec: number;
+  stateLabel?: string | null;
+  currentState?: CurrentState | null;
+  intentText?: string | null;
   progress: SessionProgress | null;
   audio: SessionAudio | null;
   lighting: SessionLighting | null;
   summary: SessionSummary | null;
+  feedbackSummary?: {
+    musicFit: number;
+    focusResult: number;
+  } | null;
   error: SessionError | null;
   createdAt: string;
   startedAt: string | null;

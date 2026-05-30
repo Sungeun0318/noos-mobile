@@ -3,9 +3,12 @@ import type {
   AuthResponse,
   EnqueueSessionRequest,
   EnqueueSessionResponse,
+  FeedbackRequest,
+  FeedbackResponse,
   MeResponse,
   MobileHealthResponse,
   SessionGetResponse,
+  SessionListResponse,
 } from './types';
 
 export const noosApi = {
@@ -20,6 +23,30 @@ export const noosApi = {
         timeoutMs: 15_000,
       }),
     get: (id: string) => request<SessionGetResponse>(`/api/mobile/sessions/${id}`),
+    feedback: (id: string, body: FeedbackRequest) =>
+      request<FeedbackResponse>(`/api/mobile/sessions/${id}/feedback`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    list: (params: { cursor?: string | null; limit?: number; status?: string } = {}) => {
+      const query = new URLSearchParams();
+
+      if (params.cursor) {
+        query.set('cursor', params.cursor);
+      }
+
+      if (params.limit) {
+        query.set('limit', String(params.limit));
+      }
+
+      if (params.status) {
+        query.set('status', params.status);
+      }
+
+      const queryString = query.toString();
+
+      return request<SessionListResponse>(`/api/mobile/sessions${queryString ? `?${queryString}` : ''}`);
+    },
   },
   auth: {
     signup: (body: {

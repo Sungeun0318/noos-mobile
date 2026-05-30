@@ -1,5 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,17 +9,26 @@ import { StateAxisChart } from '@/components/StateAxisChart';
 import { Button, Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { HistoryStackParamList } from '@/navigation/HistoryStack';
+import { getHistory } from '@/screens/history/historyGateway';
 import { activeFromHistorySession } from '@/screens/history/historyTransforms';
 import { useHistoryStore, type HistorySession } from '@/stores/historyStore';
 import { useSessionStore } from '@/stores/sessionStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { color, planetGradient, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
 
 type HistoryDetailProps = NativeStackScreenProps<HistoryStackParamList, 'History/Detail'>;
 
 export function HistoryDetailScreen({ navigation, route }: HistoryDetailProps) {
   const insets = useSafeAreaInsets();
-  // TODO: noosApi.sessions.get when backend wired.
-  const session = useHistoryStore((state) => state.getById(route.params.sessionId));
+  const simulationMode = useSettingsStore((state) => state.simulationMode);
+  const mode = simulationMode ? 'mock' : 'real';
+  const localSession = useHistoryStore((state) => state.getById(route.params.sessionId));
+  const detailQuery = useQuery({
+    queryFn: () => getHistory(route.params.sessionId, mode),
+    queryKey: ['history', 'detail', mode, route.params.sessionId],
+    staleTime: 30_000,
+  });
+  const session = simulationMode ? localSession : detailQuery.data ?? null;
   const setActive = useSessionStore((state) => state.setActive);
 
   useEffect(() => {
@@ -41,6 +51,15 @@ export function HistoryDetailScreen({ navigation, route }: HistoryDetailProps) {
       params: { sessionId: historySession.sessionId },
       screen: 'Journey/Player',
     });
+  }
+
+  if (!simulationMode && detailQuery.isLoading) {
+    return (
+      <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
+        <Text style={styles.title}>세션을 불러오는 중</Text>
+        <Text style={styles.bodyText}>상세 기록을 확인하고 있어.</Text>
+      </View>
+    );
   }
 
   if (!session) {

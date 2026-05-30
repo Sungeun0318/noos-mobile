@@ -3,11 +3,11 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { submitFeedback } from '@/api/sessionGateway';
 import { Button, Card, TextInput, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
 import { historyFromActiveSession } from '@/screens/history/historyTransforms';
-import { feedbackMock } from '@/screens/journey/feedbackMock';
 import { buildFeedbackPayload } from '@/screens/journey/feedbackPayload';
 import { useHistoryStore, type HistoryFeedbackSummary } from '@/stores/historyStore';
 import { useSessionStore } from '@/stores/sessionStore';
@@ -83,7 +83,7 @@ export function FeedbackScreen({ navigation, route }: FeedbackProps) {
     });
 
     try {
-      await feedbackMock(route.params.sessionId, payload);
+      await submitFeedback(route.params.sessionId, payload);
       finish({ focusResult: payload.focusResult, musicFit: payload.musicFit });
     } catch {
       // TODO FE-XX: queue failed feedback locally and retry on next app boot.
