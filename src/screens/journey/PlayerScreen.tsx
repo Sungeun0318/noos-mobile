@@ -74,8 +74,7 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
       setPlayState('ended');
       setStatus('completed');
       noosTelemetry.track('player_end_natural');
-      // TODO FE-09: navigate Journey/Feedback.
-      navigation.getParent()?.navigate('Today');
+      navigation.navigate('Journey/Feedback', { sessionId: active.sessionId });
       return;
     }
 
@@ -148,6 +147,10 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
   }
 
   function endSession() {
+    if (!active) {
+      return;
+    }
+
     player.pause();
     setStatus('completed');
     setPlayState('ended');
@@ -156,8 +159,7 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
       positionSec: Math.round(positionSec),
     });
     // DEC-011: lighting is disconnected in MVP, so no lighting.stop call is made.
-    // TODO FE-09: navigate Journey/Feedback.
-    goToday();
+    navigation.navigate('Journey/Feedback', { sessionId: active.sessionId });
   }
 
   if (!activeMatchesRoute || !active) {

@@ -140,3 +140,15 @@ export interface SessionGetResponse {
   startedAt: string | null;
   completedAt: string | null;
 }
+
+export interface FeedbackRequest {
+  musicFit: number;
+  lightingFit: number;
+  focusResult: number;
+  memo: string;
+}
+
+export interface FeedbackResponse {
+  ok: true;
+  savedAt: string;
+}
