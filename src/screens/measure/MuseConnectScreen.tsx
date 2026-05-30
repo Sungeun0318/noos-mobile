@@ -6,7 +6,8 @@ import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Button, Card, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { MeasureStackParamList } from '@/navigation/MeasureStack';
-import { museSimulator, type SimulatedMuseDevice } from '@/screens/measure/museSimulator';
+import { museGateway } from '@/screens/measure/museGateway';
+import type { SimulatedMuseDevice } from '@/screens/measure/museSimulator';
 import { useDeviceStore } from '@/stores/deviceStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { color, space, type } from '@/theme';
@@ -16,6 +17,7 @@ type MuseConnectNavigation = NativeStackNavigationProp<MeasureStackParamList, 'M
 export function MuseConnectScreen() {
   const navigation = useNavigation<MuseConnectNavigation>();
   const simulationMode = useSettingsStore((state) => state.simulationMode);
+  const setSimulationMode = useSettingsStore((state) => state.setSimulationMode);
   const setMuseStatus = useDeviceStore((state) => state.setMuseStatus);
   const setMuseConnection = useDeviceStore((state) => state.setMuseConnection);
   const [devices, setDevices] = useState<SimulatedMuseDevice[]>([]);
@@ -30,13 +32,14 @@ export function MuseConnectScreen() {
     noosTelemetry.track('muse_scan_start');
 
     try {
-      const nextDevices = await museSimulator.scan();
+      const nextDevices = await museGateway.scan();
       setDevices(nextDevices);
       setMuseStatus('idle');
-    } catch {
-      setError('Muse를 찾지 못했어요. 다시 시도해 주세요.');
-      setMuseConnection({ error: { code: 'SCAN_FAILED', message: 'scan failed' }, status: 'error' });
-      noosTelemetry.track('muse_connect_fail', { code: 'SCAN_FAILED' });
+    } catch (scanError) {
+      const mapped = mapMuseError(scanError, 'SCAN_FAILED');
+      setError(mapped.message);
+      setMuseConnection({ error: { code: mapped.code, message: mapped.message }, status: 'error' });
+      noosTelemetry.track('muse_connect_fail', { code: mapped.code });
     } finally {
       setScanning(false);
     }
@@ -48,21 +51,24 @@ export function MuseConnectScreen() {
     setMuseStatus('connecting');
 
     try {
-      const connection = await museSimulator.connect(device.deviceId);
+      const connection = await museGateway.connect(device.deviceId);
       setMuseConnection({ ...connection, status: 'connected' });
       noosTelemetry.track('muse_connect_success', { rssi: connection.rssi });
       navigation.navigate('Measure/Manual');
-    } catch {
-      setError('Muse 연결에 실패했어요. 다시 시도해 주세요.');
-      setMuseConnection({ error: { code: 'CONNECT_FAILED', message: 'connect failed' }, status: 'error' });
-      noosTelemetry.track('muse_connect_fail', { code: 'CONNECT_FAILED' });
+    } catch (connectError) {
+      const mapped = mapMuseError(connectError, 'CONNECT_FAILED');
+      setError(mapped.message);
+      setMuseConnection({ error: { code: mapped.code, message: mapped.message }, status: 'error' });
+      noosTelemetry.track('muse_connect_fail', { code: mapped.code });
     } finally {
       setConnectingId(null);
     }
   }
 
   useEffect(() => {
-    void scan();
+    if (simulationMode) {
+      void scan();
+    }
   }, []);
 
   return (
@@ -71,13 +77,19 @@ export function MuseConnectScreen() {
       <View style={styles.header}>
         <Text style={styles.eyebrow}>Muse</Text>
         <Text style={styles.title}>Muse를 연결해</Text>
-        <Text style={styles.description}>현재는 Muse-SIM으로 실제 연결 흐름을 검증해.</Text>
+        <Text style={styles.description}>
+          {simulationMode ? 'Muse-SIM으로 연결 흐름을 검증해.' : '실제 Muse 기기를 Bluetooth로 찾아 연결해.'}
+        </Text>
       </View>
 
       <Card level={1} padding="lg">
         <View style={styles.stack}>
           <Text style={styles.cardTitle}>권한</Text>
-          <Text style={styles.description}>시뮬레이션 모드라 Bluetooth 권한은 자동 허용으로 처리해.</Text>
+          <Text style={styles.description}>
+            {simulationMode
+              ? '시뮬레이션 모드라 Bluetooth 권한은 자동 허용으로 처리해.'
+              : '스캔을 시작하면 Muse 연결을 위해 Bluetooth 권한을 요청해.'}
+          </Text>
         </View>
       </Card>
 
@@ -86,11 +98,12 @@ export function MuseConnectScreen() {
           <View style={styles.switchText}>
             <Text style={styles.cardTitle}>Simulation EEG</Text>
             <Text style={styles.metaText}>
-              실제 BLE는 FE-13b에서 연결해. 현재 설정: {simulationMode ? '앱 시뮬레이션' : '실세션 모드'}
+              {simulationMode
+                ? 'Muse-SIM을 사용해. 실제 기기 없이 측정 흐름을 확인할 수 있어.'
+                : '실제 Muse BLE를 사용해. EEG 디코딩은 FE-13b-2에서 연결해.'}
             </Text>
           </View>
-          {/* TODO FE-13b: enable real BLE mode after react-native-ble-plx approval. */}
-          <Switch disabled value />
+          <Switch value={simulationMode} onValueChange={setSimulationMode} />
         </View>
       </Card>
 
@@ -123,6 +136,36 @@ export function MuseConnectScreen() {
       </View>
     </ScrollView>
   );
+}
+
+function mapMuseError(error: unknown, fallbackCode: 'SCAN_FAILED' | 'CONNECT_FAILED') {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = String(error.code);
+
+    if (code === 'PERMISSION_DENIED') {
+      return { code, message: 'Bluetooth 권한이 필요해요. 설정에서 허용해 주세요.' };
+    }
+
+    if (code === 'BLUETOOTH_OFF') {
+      return { code, message: 'Bluetooth를 켜고 다시 시도해 주세요.' };
+    }
+
+    if (code === 'SCAN_FAILED') {
+      return { code, message: 'Muse를 찾지 못했어요. 켜져 있는지 확인하고 다시 시도해 주세요.' };
+    }
+
+    if (code === 'CONNECT_FAILED') {
+      return { code, message: 'Muse 연결에 실패했어요. 다시 시도해 주세요.' };
+    }
+  }
+
+  return {
+    code: fallbackCode,
+    message:
+      fallbackCode === 'SCAN_FAILED'
+        ? 'Muse를 찾지 못했어요. 켜져 있는지 확인하고 다시 시도해 주세요.'
+        : 'Muse 연결에 실패했어요. 다시 시도해 주세요.',
+  };
 }
 
 const styles = StyleSheet.create({

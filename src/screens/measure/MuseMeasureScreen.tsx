@@ -8,7 +8,7 @@ import { Button, Card, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { MeasureStackParamList } from '@/navigation/MeasureStack';
 import { measureMock } from '@/screens/measure/measureMock';
-import { museSimulator } from '@/screens/measure/museSimulator';
+import { museGateway } from '@/screens/measure/museGateway';
 import { useDeviceStore } from '@/stores/deviceStore';
 import { useStateStore } from '@/stores/stateStore';
 import { color, radius, space, type } from '@/theme';
@@ -24,6 +24,7 @@ export function MuseMeasureScreen() {
   const navigation = useNavigation<MuseMeasureNavigation>();
   const surveyDraft = useStateStore((state) => state.surveyDraft);
   const setFromMeasure = useStateStore((state) => state.setFromMeasure);
+  const museDeviceName = useDeviceStore((state) => state.muse.deviceName);
   const setMuseStatus = useDeviceStore((state) => state.setMuseStatus);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [sampleBufferLen, setSampleBufferLen] = useState(0);
@@ -39,7 +40,7 @@ export function MuseMeasureScreen() {
       noosTelemetry.track('muse_measure_start');
 
       try {
-        const eeg = await museSimulator.measure(measureDurationSec, (tick) => {
+        const eeg = await museGateway.measure(measureDurationSec, (tick) => {
           if (cancelledRef.current) {
             return;
           }
@@ -115,7 +116,7 @@ export function MuseMeasureScreen() {
       <Card level={2} padding="lg">
         <View style={styles.measureStack}>
           <Text style={styles.cardTitle}>샘플 버퍼</Text>
-          <Text style={styles.description}>{sampleBufferLen} samples · Muse-SIM</Text>
+          <Text style={styles.description}>{sampleBufferLen} samples · {museDeviceName ?? 'Muse'}</Text>
         </View>
       </Card>
 

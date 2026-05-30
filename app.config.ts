@@ -19,7 +19,6 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'ai.noos.mobile',
-    permissions: ['BLUETOOTH_SCAN', 'BLUETOOTH_CONNECT', 'ACCESS_FINE_LOCATION'],
     adaptiveIcon: {
       backgroundColor: '#0A0B12',
       foregroundImage: './assets/android-icon-foreground.png',
@@ -34,7 +33,21 @@ const config: ExpoConfig = {
   extra: {
     defaultBackendUrl: process.env.EXPO_PUBLIC_DEFAULT_BACKEND_URL ?? '',
   },
-  plugins: ['expo-dev-client', 'expo-secure-store', 'expo-audio'],
+  plugins: [
+    'expo-dev-client',
+    'expo-secure-store',
+    'expo-audio',
+    [
+      'react-native-ble-plx',
+      {
+        bluetoothAlwaysPermission:
+          'NOOS가 Muse 기기와 연결해 뇌파 측정을 진행하려면 Bluetooth 접근이 필요합니다.',
+        isBackgroundEnabled: true,
+        modes: ['central'],
+        neverForLocation: true,
+      },
+    ],
+  ],
 };
 
 export default config;
