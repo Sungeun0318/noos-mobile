@@ -6,9 +6,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, TextInput, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
+import { historyFromActiveSession } from '@/screens/history/historyTransforms';
 import { feedbackMock } from '@/screens/journey/feedbackMock';
 import { buildFeedbackPayload } from '@/screens/journey/feedbackPayload';
+import { useHistoryStore, type HistoryFeedbackSummary } from '@/stores/historyStore';
 import { useSessionStore } from '@/stores/sessionStore';
+import { useStateStore } from '@/stores/stateStore';
 import { color, motion, radius, space, type } from '@/theme';
 
 type FeedbackProps = NativeStackScreenProps<JourneyStackParamList, 'Journey/Feedback'>;
@@ -24,6 +27,10 @@ export function FeedbackScreen({ navigation, route }: FeedbackProps) {
   const insets = useSafeAreaInsets();
   const active = useSessionStore((state) => state.active);
   const clearActive = useSessionStore((state) => state.clearActive);
+  const upsertHistory = useHistoryStore((state) => state.upsert);
+  const currentState = useStateStore((state) => state.currentState);
+  const stateLabel = useStateStore((state) => state.stateLabel);
+  const intentText = useStateStore((state) => state.intentText);
   const [ratings, setRatings] = useState<Record<FeedbackSliderKey, number>>({
     focusResult: 0.5,
     musicFit: 0.5,
@@ -38,8 +45,21 @@ export function FeedbackScreen({ navigation, route }: FeedbackProps) {
     navigation.getParent()?.navigate('Today');
   }
 
-  function finish() {
-    // TODO FE-12: historyStore.upsert(completed session) when history persistence exists.
+  function finish(feedbackSummary: HistoryFeedbackSummary | null) {
+    if (active) {
+      upsertHistory(
+        historyFromActiveSession(
+          active,
+          {
+            currentState,
+            intentText,
+            stateLabel,
+          },
+          feedbackSummary,
+        ),
+      );
+      // TODO FE-XX: sync completed history with backend list when sessions.list is wired.
+    }
     clearActive();
     goToday();
   }
@@ -64,11 +84,14 @@ export function FeedbackScreen({ navigation, route }: FeedbackProps) {
 
     try {
       await feedbackMock(route.params.sessionId, payload);
-      finish();
+      finish({ focusResult: payload.focusResult, musicFit: payload.musicFit });
     } catch {
       // TODO FE-XX: queue failed feedback locally and retry on next app boot.
       setNotice('저장은 됐고 나중에 동기화할게요');
-      setTimeout(finish, motion.duration.slower);
+      setTimeout(
+        () => finish({ focusResult: payload.focusResult, musicFit: payload.musicFit }),
+        motion.duration.slower,
+      );
     } finally {
       setSubmitting(false);
     }
@@ -76,7 +99,7 @@ export function FeedbackScreen({ navigation, route }: FeedbackProps) {
 
   function skip() {
     noosTelemetry.track('feedback_skip');
-    finish();
+    finish(null);
   }
 
   if (!activeMatchesRoute || !active) {

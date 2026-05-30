@@ -152,3 +152,26 @@ export interface FeedbackResponse {
   ok: true;
   savedAt: string;
 }
+
+export interface SessionListItem {
+  sessionId: string;
+  planet: string;
+  durationSec: number;
+  stateLabel: string | null;
+  createdAt: string;
+  completedAt: string;
+  audio: {
+    audioId: string;
+    durationSec: number;
+  } | null;
+  feedbackSummary: {
+    musicFit: number;
+    focusResult: number;
+  } | null;
+}
+
+export interface SessionListResponse {
+  items: SessionListItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
