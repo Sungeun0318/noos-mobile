@@ -12,15 +12,18 @@ import { AuthStack, type AuthStackParamList } from '@/navigation/AuthStack';
 import { HistoryStack } from '@/navigation/HistoryStack';
 import { JourneyStack } from '@/navigation/JourneyStack';
 import { MeasureStack } from '@/navigation/MeasureStack';
+import { getPostBootRoute, type PostBootRoute } from '@/navigation/postBootRoute';
 import { SettingsStack } from '@/navigation/SettingsStack';
+import { OnboardingScreen } from '@/screens/onboarding/OnboardingScreen';
 import { SplashScreen } from '@/screens/splash/SplashScreen';
 import { TodayScreen } from '@/screens/today/TodayScreen';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { color, space, type } from '@/theme';
 
-type RootStackParamList = {
+export type RootStackParamList = {
   Splash: undefined;
+  Onboarding: undefined;
   MainTabs: undefined;
   'Settings/Home': undefined;
   Auth: NavigatorScreenParams<AuthStackParamList>;
@@ -110,7 +113,7 @@ function bootAction(name: string, action: () => Promise<void> | void) {
 function SplashGate({
   navigation,
 }: {
-  navigation: { replace: (screen: 'MainTabs' | 'Settings/Home') => void };
+  navigation: { replace: (screen: PostBootRoute) => void };
 }) {
   useEffect(() => {
     let active = true;
@@ -132,7 +135,8 @@ function SplashGate({
       const ms = Date.now() - startedAt;
       const mode = useAuthStore.getState().mode;
       noosTelemetry.track('boot_complete', { ms, mode });
-      navigation.replace(useSettingsStore.getState().backendBaseUrl ? 'MainTabs' : 'Settings/Home');
+      const settings = useSettingsStore.getState();
+      navigation.replace(getPostBootRoute(settings.hasOnboarded, settings.backendBaseUrl));
     });
 
     return () => {
@@ -160,6 +164,7 @@ export function RootNavigator() {
     <NavigationContainer theme={navigationTheme}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="Splash" component={SplashGate} />
+        <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
         <RootStack.Screen name="MainTabs" component={MainTabs} />
         <RootStack.Screen name="Settings/Home" component={SettingsStack} />
         <RootStack.Screen
