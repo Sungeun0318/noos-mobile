@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
+import { getSession } from '@/api/sessionGateway';
 import type { SessionGetResponse } from '@/api/types';
 import { useAppActive } from '@/lib/useAppActive';
-import { sessionPollMock } from '@/screens/today/sessionPollMock';
 import { useSessionStore, type PendingSession } from '@/stores/sessionStore';
 
 import { qk } from './keys';
@@ -53,7 +53,7 @@ export function usePollSession(session: PendingSession) {
   const query = useQuery({
     enabled: appActive && !isTerminal(session.status),
     networkMode: 'offlineFirst',
-    queryFn: () => sessionPollMock(session),
+    queryFn: () => getSession(session),
     queryKey: qk.session(session.sessionId),
     refetchInterval: (queryState) => getSessionRefetchInterval(queryState.state.data),
     retry: 2,
