@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import type { PlanetId } from '@/theme';
 
-export type PendingSessionStatus = 'queued' | 'generating' | 'failed';
+export type PendingSessionStatus = 'queued' | 'generating' | 'ready' | 'failed';
 
 export interface PendingSession {
   sessionId: string;

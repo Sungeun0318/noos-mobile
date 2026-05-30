@@ -96,3 +96,31 @@ export interface EnqueueSessionResponse {
   pollAfterMs: number;
   createdAt: string;
 }
+
+export type SessionStatus = 'queued' | 'generating' | 'ready' | 'failed' | 'completed';
+
+export interface SessionProgress {
+  phase: string;
+  percent: number;
+  etaSec: number;
+}
+
+export interface SessionError {
+  code: string;
+  message: string;
+}
+
+export interface SessionGetResponse {
+  sessionId: string;
+  status: SessionStatus;
+  planet: string;
+  durationSec: number;
+  progress: SessionProgress | null;
+  audio: Record<string, unknown> | null;
+  lighting: Record<string, unknown> | null;
+  summary: Record<string, unknown> | null;
+  error: SessionError | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
