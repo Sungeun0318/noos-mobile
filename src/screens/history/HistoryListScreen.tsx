@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { HistoryStackParamList } from '@/navigation/HistoryStack';
@@ -14,7 +15,7 @@ import {
   type HistorySession,
 } from '@/stores/historyStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { color, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
+import { color, PLANETS, space, type } from '@/theme';
 
 type HistoryListProps = NativeStackScreenProps<HistoryStackParamList, 'History/List'>;
 
@@ -99,7 +100,7 @@ function HistoryCard({ session, onPress }: { session: HistorySession; onPress: (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
       <Card level={1} padding="lg" planetTint={session.planet}>
         <View style={styles.cardRow}>
-          <View style={[styles.planetOrb, { backgroundColor: PLANET_COLORS[session.planet].secondary }]} />
+          <PlanetImage planet={session.planet} round size={orbSize} style={styles.planetImage} />
           <View style={styles.cardCopy}>
             <Text style={styles.cardTitle}>{session.summary?.title ?? planet.trackName}</Text>
             <Text style={styles.bodyText}>
@@ -195,12 +196,9 @@ const styles = StyleSheet.create({
     fontWeight: type.small.weight,
     lineHeight: type.small.lineHeight,
   },
-  planetOrb: {
+  planetImage: {
     borderColor: color.border.default,
-    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
-    height: orbSize,
-    width: orbSize,
   },
   pressed: {
     opacity: 0.85,

@@ -5,11 +5,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { createSession } from '@/api/sessionGateway';
 import type { EnqueueSessionRequest } from '@/api/types';
+import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Card, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import { canAddPendingSession, useSessionStore } from '@/stores/sessionStore';
 import { useStateStore } from '@/stores/stateStore';
-import { color, PLANET_COLORS, PLANETS, radius, space, type, type PlanetId } from '@/theme';
+import { color, PLANETS, radius, space, type, type PlanetId } from '@/theme';
 
 type JourneyNavigation = {
   getParent: () => { navigate: (screen: 'Today') => void } | undefined;
@@ -162,7 +163,6 @@ function RecommendedHero({
   onSelect: () => void;
 }) {
   const meta = PLANETS[planet];
-  const colors = PLANET_COLORS[planet];
 
   return (
     <Pressable accessibilityRole="button" onPress={onSelect} style={({ pressed }) => pressed && styles.pressed}>
@@ -173,7 +173,7 @@ function RecommendedHero({
             <Text style={styles.cardTitle}>{meta.title}</Text>
             <Text style={styles.bodyText}>{meta.description}</Text>
           </View>
-          <View style={[styles.heroOrb, { backgroundColor: colors.secondary }]} />
+          <PlanetImage planet={planet} round size={heroOrbSize} style={styles.planetImage} />
         </View>
       </Card>
     </Pressable>
@@ -210,7 +210,7 @@ function PlanetGrid({
                 pressed && styles.pressed,
               ]}
             >
-              <View style={[styles.gridOrb, { backgroundColor: PLANET_COLORS[planetId].secondary }]} />
+              <PlanetImage planet={planetId} round size={gridOrbSize} style={styles.planetImage} />
               <Text style={styles.planetTitle}>{meta.title}</Text>
               <Text style={styles.planetMood}>{meta.moodTarget}</Text>
               {recommended ? <Text style={styles.recommendedLabel}>recommended</Text> : null}
@@ -347,20 +347,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: space.sm,
   },
-  gridOrb: {
-    borderRadius: gridOrbSize / 2,
-    height: gridOrbSize,
-    opacity: 0.9,
-    width: gridOrbSize,
-  },
   header: {
     gap: space.xs,
-  },
-  heroOrb: {
-    borderRadius: heroOrbSize / 2,
-    height: heroOrbSize,
-    opacity: 0.9,
-    width: heroOrbSize,
   },
   intentChip: {
     alignSelf: 'flex-start',
@@ -421,6 +409,10 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
+  },
+  planetImage: {
+    borderColor: color.border.default,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   recommendRow: {
     alignItems: 'center',

@@ -6,6 +6,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StateAxisChart } from '@/components/StateAxisChart';
+import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { HistoryStackParamList } from '@/navigation/HistoryStack';
@@ -14,7 +15,7 @@ import { activeFromHistorySession } from '@/screens/history/historyTransforms';
 import { useHistoryStore, type HistorySession } from '@/stores/historyStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { color, planetGradient, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
+import { color, planetGradient, PLANETS, radius, space, type } from '@/theme';
 
 type HistoryDetailProps = NativeStackScreenProps<HistoryStackParamList, 'History/Detail'>;
 
@@ -87,7 +88,7 @@ export function HistoryDetailScreen({ navigation, route }: HistoryDetailProps) {
       style={styles.container}
     >
       <LinearGradient colors={gradient.colors} locations={gradient.locations} style={styles.hero}>
-        <View style={[styles.planetOrb, { backgroundColor: PLANET_COLORS[session.planet].secondary }]} />
+        <PlanetImage planet={session.planet} round size={orbSize} style={styles.planetImage} />
         <Text style={styles.eyebrow}>{planet.title}</Text>
         <Text style={styles.title}>{session.summary?.title ?? planet.trackName}</Text>
         {session.summary?.description ? (
@@ -237,12 +238,9 @@ const styles = StyleSheet.create({
     fontWeight: type.body.weight,
     lineHeight: type.body.lineHeight,
   },
-  planetOrb: {
+  planetImage: {
     borderColor: color.border.default,
-    borderRadius: orbSize / 2,
     borderWidth: StyleSheet.hairlineWidth,
-    height: orbSize,
-    width: orbSize,
   },
   title: {
     color: color.text.primary,

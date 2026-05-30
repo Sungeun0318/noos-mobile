@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Card } from '@/components/ui';
 import { GuestPromptCard } from '@/components/GuestPromptCard';
+import { PlanetImage } from '@/components/PlanetImage';
 import { noosTelemetry } from '@/lib/telemetry';
 import { useHealth } from '@/queries/useHealth';
 import { usePollSession } from '@/queries/usePollSession';
@@ -181,7 +182,6 @@ function StateCard({
 function RecommendedPlanetCard({ planet: measuredPlanet }: { planet: keyof typeof PLANETS | null }) {
   const planetId = measuredPlanet ?? 'neptune';
   const planet = PLANETS[planetId];
-  const colors = PLANET_COLORS[planetId];
   const subtitle = measuredPlanet ? planet.description : '측정 후 더 정확해져요';
 
   return (
@@ -192,7 +192,7 @@ function RecommendedPlanetCard({ planet: measuredPlanet }: { planet: keyof typeo
           <Text style={styles.cardTitle}>{planet.title}</Text>
           <Text style={styles.bodyText}>{subtitle}</Text>
         </View>
-        <View style={[styles.planetOrb, { backgroundColor: colors.secondary }]} />
+        <PlanetImage planet={planetId} round size={orbSize} style={styles.planetImage} />
       </View>
     </Card>
   );
@@ -359,11 +359,14 @@ function RecentSessionMini({ session }: { session: HistorySession | null }) {
     >
       <Card level={1} padding="lg" planetTint={session.planet}>
         <View style={styles.recentRow}>
-          <View style={styles.cardStack}>
-            <Text style={styles.label}>최근 세션</Text>
-            <Text style={styles.recentTitle}>
-              {session.summary?.title ?? PLANETS[session.planet].trackName}
-            </Text>
+          <View style={styles.recentCopy}>
+            <PlanetImage planet={session.planet} round size={space['4xl']} style={styles.planetImage} />
+            <View style={styles.cardStack}>
+              <Text style={styles.label}>최근 세션</Text>
+              <Text style={styles.recentTitle}>
+                {session.summary?.title ?? PLANETS[session.planet].trackName}
+              </Text>
+            </View>
           </View>
           <Text style={styles.pendingEta}>{formatRecentCompletedAt(session.completedAt)}</Text>
         </View>
@@ -476,11 +479,9 @@ const styles = StyleSheet.create({
     fontWeight: type.bodyMd.weight,
     lineHeight: type.bodyMd.lineHeight,
   },
-  planetOrb: {
-    borderRadius: orbSize / 2,
-    height: orbSize,
-    opacity: 0.88,
-    width: orbSize,
+  planetImage: {
+    borderColor: color.border.default,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   pressed: {
     opacity: 0.85,
@@ -503,6 +504,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: space.md,
     justifyContent: 'space-between',
+  },
+  recentCopy: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: space.md,
   },
   recentTitle: {
     color: color.text.primary,
