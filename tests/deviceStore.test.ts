@@ -34,6 +34,18 @@ describe('deviceStore', () => {
     });
   });
 
+  it('keeps muse connection error details when status is error', () => {
+    useDeviceStore.getState().setMuseConnection({
+      error: { code: 'SCAN_FAILED', message: 'scan failed' },
+      status: 'error',
+    });
+
+    expect(useDeviceStore.getState().muse).toMatchObject({
+      error: { code: 'SCAN_FAILED', message: 'scan failed' },
+      status: 'error',
+    });
+  });
+
   it('resets muse connection state', () => {
     useDeviceStore.getState().setMuseConnection({ deviceId: 'muse-sim', status: 'connected' });
 

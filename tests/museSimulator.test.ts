@@ -5,7 +5,7 @@ import { museSimulator } from '@/screens/measure/museSimulator';
 describe('museSimulator', () => {
   it('scans a simulated Muse device', async () => {
     await expect(museSimulator.scan(0)).resolves.toEqual([
-      { deviceId: 'muse-sim', name: 'Muse-SIM', rssi: -50 },
+      { deviceId: 'muse-sim', isMuseCandidate: true, name: 'Muse-SIM', rssi: -50 },
     ]);
   });
 

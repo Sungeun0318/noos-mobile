@@ -3,6 +3,7 @@ import type { MeasureEeg } from '@/api/types';
 export interface SimulatedMuseDevice {
   deviceId: string;
   name: string;
+  isMuseCandidate?: boolean;
   rssi: number;
 }
 
@@ -40,7 +41,7 @@ export const museSimulator = {
       await delay(delayMs);
     }
 
-    return [{ deviceId: 'muse-sim', name: 'Muse-SIM', rssi: -50 }];
+    return [{ deviceId: 'muse-sim', isMuseCandidate: true, name: 'Muse-SIM', rssi: -50 }];
   },
 
   // TODO FE-13b: replace with real BLE connect and service discovery.

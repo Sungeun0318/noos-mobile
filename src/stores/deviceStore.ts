@@ -39,7 +39,11 @@ export const useDeviceStore = create<DeviceStoreState>()((set) => ({
     })),
   setMuseConnection: (info) =>
     set((state) => ({
-      muse: { ...state.muse, ...info, error: info.status === 'error' ? state.muse.error : null },
+      muse: {
+        ...state.muse,
+        ...info,
+        error: info.status === 'error' ? (info.error ?? state.muse.error) : null,
+      },
     })),
   resetMuse: () => set({ muse: initialMuse }),
 }));
