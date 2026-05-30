@@ -47,4 +47,52 @@ describe('measureMock', () => {
     expect(response.stateLabel).toBe('overloaded recovery');
     expect(response.recommendedPlanet).toBe('Neptune');
   });
+
+  it('uses hybrid source and EEG weight when EEG is present with survey', async () => {
+    const response = await measureMock(
+      { focus: 0.5, stress: 0.4, fatigue: 0.3, relaxation: 0.5 },
+      {
+        bands: {
+          alpha: 28,
+          beta: 22,
+          delta: 11,
+          gamma: 9,
+          theta: 18,
+        },
+        deviceId: 'muse-sim',
+        deviceType: 'Muse S Athena',
+        measuredAt: '2026-05-30T01:00:00Z',
+        measurementDurationSec: 60,
+        sampleCount: 15360,
+        sampleRateHz: 256,
+        signalQuality: 0.88,
+      },
+      0,
+    );
+
+    expect(response.source).toBe('hybrid');
+    expect(response.weight).toEqual({ survey: 0.45, eeg: 0.55 });
+    expect(response.confidence).toBe(0.82);
+  });
+
+  it('uses eeg source when only EEG is present', async () => {
+    const response = await measureMock(null, {
+      bands: {
+        alpha: 28,
+        beta: 22,
+        delta: 11,
+        gamma: 9,
+        theta: 18,
+      },
+      deviceId: 'muse-sim',
+      deviceType: 'Muse S Athena',
+      measuredAt: '2026-05-30T01:00:00Z',
+      measurementDurationSec: 60,
+      sampleCount: 15360,
+      sampleRateHz: 256,
+      signalQuality: 0.88,
+    }, 0);
+
+    expect(response.source).toBe('eeg');
+  });
 });
