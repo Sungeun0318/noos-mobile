@@ -92,7 +92,13 @@ export function SettingsHomeScreen() {
             />
           }
         />
-        <Row disabled hint="FE-14에서 추가" label="디버그 화면" />
+        <Row
+          label="개발자 도구"
+          onPress={() => {
+            trackRow('debug');
+            navigation.navigate('Settings/Debug');
+          }}
+        />
         <View style={styles.versionRow}>
           <Text style={styles.versionLabel}>버전</Text>
           <Text style={styles.versionValue}>{appVersion}</Text>
