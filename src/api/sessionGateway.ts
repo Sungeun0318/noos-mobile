@@ -1,5 +1,12 @@
-import type { EnqueueSessionRequest, EnqueueSessionResponse, SessionGetResponse } from '@/api/types';
+import type {
+  EnqueueSessionRequest,
+  EnqueueSessionResponse,
+  FeedbackRequest,
+  FeedbackResponse,
+  SessionGetResponse,
+} from '@/api/types';
 import { enqueueMock } from '@/screens/journey/enqueueMock';
+import { feedbackMock } from '@/screens/journey/feedbackMock';
 import { sessionPollMock } from '@/screens/today/sessionPollMock';
 import type { PendingSession } from '@/stores/sessionStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -34,4 +41,18 @@ export async function getSession(
   const { noosApi } = await import('@/api/noosApi');
 
   return noosApi.sessions.get(session.sessionId);
+}
+
+export async function submitFeedback(
+  sessionId: string,
+  body: FeedbackRequest,
+  mode: SessionGatewayMode = currentSessionGatewayMode(),
+): Promise<FeedbackResponse> {
+  if (mode === 'mock') {
+    return feedbackMock(sessionId, body);
+  }
+
+  const { noosApi } = await import('@/api/noosApi');
+
+  return noosApi.sessions.feedback(sessionId, body);
 }

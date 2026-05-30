@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,19 +7,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { HistoryStackParamList } from '@/navigation/HistoryStack';
+import { listHistory } from '@/screens/history/historyGateway';
 import {
   listHistorySessions,
   useHistoryStore,
   type HistorySession,
 } from '@/stores/historyStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { color, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
 
 type HistoryListProps = NativeStackScreenProps<HistoryStackParamList, 'History/List'>;
 
 export function HistoryListScreen({ navigation }: HistoryListProps) {
   const insets = useSafeAreaInsets();
-  // TODO: useInfiniteQuery(noosApi.sessions.list) when backend wired.
-  const sessions = useHistoryStore((state) => listHistorySessions(state.sessions));
+  const simulationMode = useSettingsStore((state) => state.simulationMode);
+  const localSessions = useHistoryStore((state) => listHistorySessions(state.sessions));
+  const mode = simulationMode ? 'mock' : 'real';
+  const historyQuery = useQuery({
+    queryFn: () => listHistory(mode),
+    queryKey: ['history', mode],
+    staleTime: 30_000,
+  });
+  const sessions = simulationMode ? localSessions : historyQuery.data ?? [];
 
   useEffect(() => {
     noosTelemetry.track('history_view', { count: sessions.length });
@@ -26,6 +36,15 @@ export function HistoryListScreen({ navigation }: HistoryListProps) {
 
   function goPlanetSelect() {
     navigation.getParent()?.navigate('Journey');
+  }
+
+  if (!simulationMode && historyQuery.isLoading) {
+    return (
+      <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
+        <Text style={styles.title}>기록을 불러오는 중</Text>
+        <Text style={styles.bodyText}>서버에서 완료한 세션을 확인하고 있어.</Text>
+      </View>
+    );
   }
 
   if (sessions.length === 0) {
@@ -53,6 +72,9 @@ export function HistoryListScreen({ navigation }: HistoryListProps) {
         <Text style={styles.eyebrow}>History</Text>
         <Text style={styles.title}>완료한 세션</Text>
       </View>
+      {!simulationMode && historyQuery.isError ? (
+        <Text style={styles.metaText}>서버 기록을 불러오지 못했어. 잠시 후 다시 시도해줘.</Text>
+      ) : null}
       {sessions.map((session) => (
         <HistoryCard
           key={session.sessionId}

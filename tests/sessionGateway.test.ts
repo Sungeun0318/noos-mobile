@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createSession, currentSessionGatewayMode, getSession } from '@/api/sessionGateway';
-import type { EnqueueSessionRequest } from '@/api/types';
+import { createSession, currentSessionGatewayMode, getSession, submitFeedback } from '@/api/sessionGateway';
+import type { EnqueueSessionRequest, FeedbackRequest } from '@/api/types';
 import type { PendingSession } from '@/stores/sessionStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 
@@ -9,6 +9,7 @@ import { __resetMMKV } from './mocks/react-native-mmkv';
 
 const sessionsApi = vi.hoisted(() => ({
   create: vi.fn(),
+  feedback: vi.fn(),
   get: vi.fn(),
 }));
 
@@ -33,6 +34,13 @@ const pending: PendingSession = {
   progress: null,
   sessionId: 'session_test',
   status: 'queued',
+};
+
+const feedbackPayload: FeedbackRequest = {
+  focusResult: 0.75,
+  lightingFit: 0.5,
+  memo: 'ok',
+  musicFit: 0.8,
 };
 
 describe('sessionGateway', () => {
@@ -71,17 +79,25 @@ describe('sessionGateway', () => {
       status: 'queued',
       summary: null,
     });
+    sessionsApi.feedback.mockResolvedValue({
+      ok: true,
+      savedAt: '2026-05-30T01:02:00Z',
+    });
 
     await expect(createSession(payload, 'real')).resolves.toMatchObject({ sessionId: 'session_real' });
     await expect(getSession(pending, 'real')).resolves.toMatchObject({ sessionId: 'session_real' });
+    await expect(submitFeedback('session_real', feedbackPayload, 'real')).resolves.toMatchObject({ ok: true });
     expect(sessionsApi.create).toHaveBeenCalledWith(payload);
     expect(sessionsApi.get).toHaveBeenCalledWith('session_test');
+    expect(sessionsApi.feedback).toHaveBeenCalledWith('session_real', feedbackPayload);
   });
 
   it('uses mock session paths in mock mode', async () => {
     await expect(createSession(payload, 'mock')).resolves.toMatchObject({ status: 'queued' });
     await expect(getSession(pending, 'mock')).resolves.toMatchObject({ sessionId: 'session_test' });
+    await expect(submitFeedback('session_mock', feedbackPayload, 'mock')).resolves.toMatchObject({ ok: true });
     expect(sessionsApi.create).not.toHaveBeenCalled();
     expect(sessionsApi.get).not.toHaveBeenCalled();
+    expect(sessionsApi.feedback).not.toHaveBeenCalled();
   });
 });

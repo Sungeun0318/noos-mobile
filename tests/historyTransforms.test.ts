@@ -84,7 +84,6 @@ describe('history transforms', () => {
       audio: {
         audioId: 'audio_test',
         durationSec: 600,
-        streamUrl: 'mock://audio/session_test',
       },
       durationSec: 600,
       planet: 'mars',
@@ -92,6 +91,62 @@ describe('history transforms', () => {
       startedAt: Date.parse('2026-05-21T01:00:00.000Z'),
       status: 'playing',
       summary: { description: 'Focused track', title: 'Mars Ignite' },
+    });
+  });
+
+  it('normalizes server list items into history sessions', async () => {
+    const { historyFromSessionListItem } = await import('@/screens/history/historyTransforms');
+
+    expect(
+      historyFromSessionListItem({
+        audio: { audioId: 'audio_real', durationSec: 300 },
+        completedAt: '2026-05-20T02:00:00.000Z',
+        createdAt: '2026-05-20T01:55:00.000Z',
+        durationSec: 300,
+        feedbackSummary: { focusResult: 0.7, musicFit: 0.8 },
+        planet: 'Mars',
+        sessionId: 'session_real',
+        stateLabel: 'calm focus',
+      }),
+    ).toMatchObject({
+      audio: { audioId: 'audio_real', durationSec: 300 },
+      currentState: null,
+      feedbackSummary: { focusResult: 0.7, musicFit: 0.8 },
+      planet: 'mars',
+      sessionId: 'session_real',
+      stateLabel: 'calm focus',
+    });
+  });
+
+  it('normalizes server detail responses into history sessions', async () => {
+    const { historyFromSessionGetResponse } = await import('@/screens/history/historyTransforms');
+
+    expect(
+      historyFromSessionGetResponse({
+        audio: { audioId: 'audio_real', durationSec: 300 },
+        completedAt: null,
+        createdAt: '2026-05-20T01:55:00.000Z',
+        currentState,
+        durationSec: 300,
+        error: null,
+        feedbackSummary: { focusResult: 0.7, musicFit: 0.8 },
+        intentText: 'focus',
+        lighting: null,
+        planet: 'MARS',
+        progress: null,
+        sessionId: 'session_real',
+        startedAt: '2026-05-20T01:56:00.000Z',
+        stateLabel: 'calm focus',
+        status: 'ready',
+        summary: { description: 'Focused track', title: 'Mars Ignite' },
+      }),
+    ).toMatchObject({
+      completedAt: '2026-05-20T01:56:00.000Z',
+      currentState,
+      feedbackSummary: { focusResult: 0.7, musicFit: 0.8 },
+      intentText: 'focus',
+      planet: 'mars',
+      summary: { title: 'Mars Ignite' },
     });
   });
 });
