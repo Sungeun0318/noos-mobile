@@ -8,12 +8,13 @@ import type { EnqueueSessionRequest } from '@/api/types';
 import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Card, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
+import { getMeasurementCtaState } from '@/screens/journey/planetSelectMeasurement';
 import { canAddPendingSession, useSessionStore } from '@/stores/sessionStore';
 import { useStateStore } from '@/stores/stateStore';
 import { color, PLANETS, radius, space, type, type PlanetId } from '@/theme';
 
 type JourneyNavigation = {
-  getParent: () => { navigate: (screen: 'Today') => void } | undefined;
+  getParent: () => { navigate: (screen: 'Measure' | 'Today') => void } | undefined;
 };
 
 const durationOptions = [5, 10, 30, 60] as const;
@@ -26,6 +27,7 @@ export function PlanetSelectScreen({ navigation }: { navigation: JourneyNavigati
   const measurementId = useStateStore((state) => state.measurementId);
   const currentState = useStateStore((state) => state.currentState);
   const stateLabel = useStateStore((state) => state.stateLabel);
+  const measuredAt = useStateStore((state) => state.measuredAt);
   const recommendedPlanet = useStateStore((state) => state.recommendedPlanet);
   const intentText = useStateStore((state) => state.intentText);
   const source = useStateStore((state) => state.source);
@@ -108,6 +110,12 @@ export function PlanetSelectScreen({ navigation }: { navigation: JourneyNavigati
     }
   }
 
+  function goMeasure() {
+    const hadMeasurement = !!(measurementId || currentState);
+    noosTelemetry.track('planet_remeasure_tap', { hadMeasurement });
+    navigation.getParent()?.navigate('Measure');
+  }
+
   return (
     <ScrollView
       contentContainerStyle={[
@@ -125,6 +133,12 @@ export function PlanetSelectScreen({ navigation }: { navigation: JourneyNavigati
       </View>
 
       {toast ? <Toast message={toast} variant="warning" /> : null}
+      <MeasurementSourceCard
+        measuredAt={measuredAt}
+        stateLabel={stateLabel}
+        hasMeasurement={!!(measurementId || currentState)}
+        onPress={goMeasure}
+      />
       {recommendedPlanet ? (
         <RecommendedHero
           isSelected={(selectedPlanet ?? recommendedPlanet) === recommendedPlanet}
@@ -150,6 +164,32 @@ export function PlanetSelectScreen({ navigation }: { navigation: JourneyNavigati
         size="lg"
       />
     </ScrollView>
+  );
+}
+
+function MeasurementSourceCard({
+  hasMeasurement,
+  measuredAt,
+  stateLabel,
+  onPress,
+}: {
+  hasMeasurement: boolean;
+  measuredAt: string | null;
+  stateLabel: string | null;
+  onPress: () => void;
+}) {
+  const cta = getMeasurementCtaState({ hasMeasurement, measuredAt, stateLabel });
+
+  return (
+    <Card level={2} padding="lg">
+      <View style={styles.measurementRow}>
+        <View style={styles.cardStack}>
+          <Text style={styles.cardTitleSmall}>{cta.title}</Text>
+          <Text style={styles.bodyText}>{cta.body}</Text>
+        </View>
+        <Button label={cta.buttonLabel} onPress={onPress} size="sm" variant="secondary" />
+      </View>
+    </Card>
   );
 }
 
@@ -378,6 +418,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: space.lg,
+    justifyContent: 'space-between',
+  },
+  measurementRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space.md,
     justifyContent: 'space-between',
   },
   planetCard: {
