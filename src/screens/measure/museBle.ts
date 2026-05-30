@@ -28,17 +28,48 @@ export class MuseBleError extends Error {
 let manager: BleManager | null = null;
 let connectedDevice: Device | null = null;
 
+const museServiceUuid = '0000fe8d-0000-1000-8000-00805f9b34fb';
+
 function getManager() {
   manager ??= new BleManager();
   return manager;
 }
 
-function getDeviceName(device: Device) {
-  return device.name ?? device.localName ?? 'Muse';
+function getAdvertisedName(device: Device) {
+  return device.name ?? device.localName;
 }
 
-function isMuseDevice(device: Device) {
-  return getDeviceName(device).toLowerCase().includes('muse');
+function getDisplayName(device: Device) {
+  return getAdvertisedName(device) ?? `Unknown BLE Device (${device.id.slice(0, 6)})`;
+}
+
+function normalizeUuid(uuid: string) {
+  return uuid.toLowerCase();
+}
+
+function isMuseServiceUuid(uuid: string) {
+  const normalized = normalizeUuid(uuid);
+  return normalized === museServiceUuid || normalized === 'fe8d' || normalized.startsWith('0000fe8d-');
+}
+
+function isMuseCandidate(device: Device) {
+  const advertisedName = getAdvertisedName(device);
+
+  if (advertisedName?.toLowerCase().includes('muse')) {
+    return true;
+  }
+
+  return device.serviceUUIDs?.some(isMuseServiceUuid) ?? false;
+}
+
+function sortBleDevices(devices: SimulatedMuseDevice[]) {
+  return [...devices].sort((a, b) => {
+    if (a.isMuseCandidate !== b.isMuseCandidate) {
+      return a.isMuseCandidate ? -1 : 1;
+    }
+
+    return b.rssi - a.rssi;
+  });
 }
 
 async function requestBlePermissions(): Promise<BlePermissionStatus> {
@@ -132,7 +163,7 @@ export const museBle = {
 
         settled = true;
         bleManager.stopDeviceScan();
-        resolve(devices.sort((a, b) => (b.rssi ?? -100) - (a.rssi ?? -100)));
+        resolve(sortBleDevices(devices));
       };
 
       const fail = (error: unknown) => {
@@ -147,20 +178,21 @@ export const museBle = {
 
       const timer = setTimeout(() => finish(Array.from(devicesById.values())), timeoutMs);
 
-      bleManager.startDeviceScan(null, { allowDuplicates: false }, (error, device) => {
+      bleManager.startDeviceScan(null, { allowDuplicates: true }, (error, device) => {
         if (error) {
           clearTimeout(timer);
           fail(new MuseBleError('SCAN_FAILED', error.message));
           return;
         }
 
-        if (!device || !isMuseDevice(device)) {
+        if (!device) {
           return;
         }
 
         devicesById.set(device.id, {
           deviceId: device.id,
-          name: getDeviceName(device),
+          isMuseCandidate: isMuseCandidate(device),
+          name: getDisplayName(device),
           rssi: device.rssi ?? -100,
         });
       });
@@ -178,7 +210,7 @@ export const museBle = {
 
       return {
         deviceId: withRssi.id,
-        deviceName: getDeviceName(withRssi),
+        deviceName: getDisplayName(withRssi),
         rssi: withRssi.rssi,
         batteryPct: null,
         signalQuality: 0.72,

@@ -24,6 +24,7 @@ export function MuseConnectScreen() {
   const [scanning, setScanning] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const hasMuseCandidate = devices.some((device) => device.isMuseCandidate);
 
   async function scan() {
     setScanning(true);
@@ -116,13 +117,30 @@ export function MuseConnectScreen() {
         <Text style={styles.description}>주변에 Muse가 없어요. 켜져 있는지 확인하고 다시 시도해 주세요.</Text>
       ) : null}
 
+      {!simulationMode && devices.length > 0 && !hasMuseCandidate ? (
+        <Card level={2} padding="lg">
+          <Text style={styles.description}>
+            주변에 Muse 후보가 안 보여서 주변 BLE 장치도 함께 표시 중이에요. 목록에서 Muse를 직접 선택할 수 있어요.
+          </Text>
+        </Card>
+      ) : null}
+
       <View style={styles.stack}>
         {devices.map((device) => (
           <Card key={device.deviceId} level={2} padding="lg">
             <View style={styles.deviceRow}>
               <View style={styles.switchText}>
-                <Text style={styles.deviceName}>{device.name}</Text>
-                <Text style={styles.metaText}>RSSI {device.rssi}</Text>
+                <View style={styles.deviceTitleRow}>
+                  <Text style={device.isMuseCandidate ? styles.deviceName : styles.secondaryDeviceName}>{device.name}</Text>
+                  {device.isMuseCandidate ? (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>Muse 후보</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.metaText}>
+                  RSSI {device.rssi} · {device.isMuseCandidate ? 'Muse service/name match' : 'BLE device'}
+                </Text>
               </View>
               <Button
                 label="연결"
@@ -203,6 +221,12 @@ const styles = StyleSheet.create({
     gap: space.md,
     justifyContent: 'space-between',
   },
+  deviceTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
+  },
   eyebrow: {
     color: color.text.tertiary,
     fontFamily: type.caption.family,
@@ -234,6 +258,13 @@ const styles = StyleSheet.create({
     fontWeight: type.h2.weight,
     lineHeight: type.h2.lineHeight,
   },
+  secondaryDeviceName: {
+    color: color.text.secondary,
+    fontFamily: type.bodyMd.family,
+    fontSize: type.bodyMd.size,
+    fontWeight: type.bodyMd.weight,
+    lineHeight: type.bodyMd.lineHeight,
+  },
   stack: {
     gap: space.md,
   },
@@ -252,5 +283,20 @@ const styles = StyleSheet.create({
     fontSize: type.h1.size,
     fontWeight: type.h1.weight,
     lineHeight: type.h1.lineHeight,
+  },
+  badge: {
+    backgroundColor: color.bg.elevated,
+    borderColor: color.border.default,
+    borderRadius: space.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+  },
+  badgeText: {
+    color: color.text.primary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    lineHeight: type.caption.lineHeight,
   },
 });
