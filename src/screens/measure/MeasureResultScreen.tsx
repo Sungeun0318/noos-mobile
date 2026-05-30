@@ -3,11 +3,12 @@ import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PlanetImage } from '@/components/PlanetImage';
 import { StateAxisChart } from '@/components/StateAxisChart';
 import { Button, Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import { useStateStore } from '@/stores/stateStore';
-import { color, PLANET_COLORS, PLANETS, radius, space, type, type PlanetId } from '@/theme';
+import { color, PLANETS, radius, space, type, type PlanetId } from '@/theme';
 
 type ResultNavigation = {
   getParent: () => { navigate: (screen: 'Journey' | 'Measure') => void } | undefined;
@@ -116,7 +117,7 @@ function RecommendedPlanetCard({ planet }: { planet: PlanetId }) {
           <Text style={styles.cardTitle}>{meta.title}</Text>
           <Text style={styles.bodyText}>{meta.description}</Text>
         </View>
-        <View style={[styles.planetOrb, { backgroundColor: PLANET_COLORS[planet].secondary }]} />
+        <PlanetImage planet={planet} round size={orbSize} style={styles.planetImage} />
       </View>
     </Card>
   );
@@ -232,11 +233,9 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: space.xs,
   },
-  planetOrb: {
-    borderRadius: orbSize / 2,
-    height: orbSize,
-    opacity: 0.88,
-    width: orbSize,
+  planetImage: {
+    borderColor: color.border.default,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   planetRow: {
     alignItems: 'center',

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { resolveAudioSource } from '@/audio/resolveAudioSource';
+import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
@@ -187,7 +188,7 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
       style={styles.container}
     >
       <LinearGradient colors={gradient.colors} locations={gradient.locations} style={styles.hero}>
-        <View style={[styles.planetOrb, { backgroundColor: PLANET_COLORS[active.planet].secondary }]} />
+        <PlanetImage planet={active.planet} round size={orbSize} style={styles.planetImage} />
       </LinearGradient>
 
       <View style={styles.header}>
@@ -357,11 +358,9 @@ const styles = StyleSheet.create({
     fontWeight: type.small.weight,
     lineHeight: type.small.lineHeight,
   },
-  planetOrb: {
-    borderRadius: orbSize / 2,
-    height: orbSize,
-    opacity: 0.9,
-    width: orbSize,
+  planetImage: {
+    borderColor: color.border.default,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   playButton: {
     alignItems: 'center',
