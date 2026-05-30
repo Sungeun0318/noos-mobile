@@ -14,16 +14,6 @@ export interface TodayRecommendedPlanet {
   subtitle: string;
 }
 
-export interface TodayPendingSession {
-  id: string;
-  planet: PlanetId;
-  planetTitle: string;
-  durationLabel: string;
-  statusLabel: string;
-  etaLabel: string;
-  progress: number;
-}
-
 export interface TodayRecentSession {
   id: string;
   title: string;
@@ -34,7 +24,6 @@ export interface TodayRecentSession {
 export interface TodayMockData {
   state: TodayStateSummary | null;
   recommendedPlanet: TodayRecommendedPlanet;
-  pendingSessions: TodayPendingSession[];
   recentSession: TodayRecentSession | null;
 }
 
@@ -51,17 +40,6 @@ const filledMock: TodayMockData = {
     title: 'Mars',
     subtitle: '시작 에너지를 끌어올리기 좋은 상태예요',
   },
-  pendingSessions: [
-    {
-      id: 'mock-pending-mars',
-      planet: 'mars',
-      planetTitle: 'Mars',
-      durationLabel: '10분 트랙',
-      statusLabel: '생성 중',
-      etaLabel: '약 8분 남음',
-      progress: 0.36,
-    },
-  ],
   recentSession: {
     id: 'mock-recent-neptune',
     title: 'Neptune Drift',
@@ -77,7 +55,6 @@ const emptyMock: TodayMockData = {
     title: 'Neptune',
     subtitle: '측정 후 더 정확해져요',
   },
-  pendingSessions: [],
   recentSession: null,
 };
 

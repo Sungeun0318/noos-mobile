@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '@/lib/logger';
 import { subscribeNetInfo } from '@/lib/netinfo';
 import { noosTelemetry } from '@/lib/telemetry';
+import { JourneyStack } from '@/navigation/JourneyStack';
 import { MeasureStack } from '@/navigation/MeasureStack';
 import { SettingsStack } from '@/navigation/SettingsStack';
 import { SplashScreen } from '@/screens/splash/SplashScreen';
@@ -75,6 +76,10 @@ function MainTabs() {
 
         if (label === 'Measure') {
           return <Tabs.Screen component={MeasureStack} key={label} name={label} />;
+        }
+
+        if (label === 'Journey') {
+          return <Tabs.Screen component={JourneyStack} key={label} name={label} />;
         }
 
         return label === 'Settings' ? (
