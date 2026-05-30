@@ -8,7 +8,7 @@ export interface LogLine {
   meta?: unknown;
 }
 
-const maxLines = 500;
+const maxLines = 200;
 const ring: LogLine[] = [];
 
 function isDev() {
@@ -58,7 +58,32 @@ export const logger = {
   lines() {
     return [...ring];
   },
+  recentLines() {
+    return [...ring];
+  },
   clear() {
     ring.length = 0;
   },
 };
+
+function redactSensitiveValue(key: string, value: unknown) {
+  const lower = key.toLowerCase();
+
+  if (
+    lower.includes('token') ||
+    lower.includes('password') ||
+    lower.includes('secret') ||
+    lower === 'authorization'
+  ) {
+    return '[redacted]';
+  }
+
+  return value;
+}
+
+export function formatLogLine(line: LogLine) {
+  const meta =
+    line.meta === undefined ? '' : ` ${JSON.stringify(line.meta, redactSensitiveValue)}`;
+
+  return `${line.at} ${line.level.toUpperCase()} [${line.module}] ${line.message}${meta}`;
+}

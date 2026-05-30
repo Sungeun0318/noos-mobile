@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { AccountScreen } from '@/screens/settings/AccountScreen';
 import { BackendUrlScreen } from '@/screens/settings/BackendUrlScreen';
+import { DebugScreen } from '@/screens/settings/DebugScreen';
 import { SettingsHomeScreen } from '@/screens/settings/SettingsHomeScreen';
 import { color } from '@/theme';
 
@@ -9,6 +10,7 @@ export type SettingsStackParamList = {
   'Settings/Home': undefined;
   'Settings/BackendUrl': undefined;
   'Settings/Account': undefined;
+  'Settings/Debug': undefined;
 };
 
 const Stack = createNativeStackNavigator<SettingsStackParamList>();
@@ -37,6 +39,11 @@ export function SettingsStack() {
         component={AccountScreen}
         name="Settings/Account"
         options={{ title: 'Account' }}
+      />
+      <Stack.Screen
+        component={DebugScreen}
+        name="Settings/Debug"
+        options={{ title: 'Developer Tools' }}
       />
     </Stack.Navigator>
   );
