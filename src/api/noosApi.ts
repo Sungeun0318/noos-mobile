@@ -1,10 +1,26 @@
 import { request, requestWithBaseUrl } from './client';
-import type { AuthResponse, MeResponse, MobileHealthResponse } from './types';
+import type {
+  AuthResponse,
+  EnqueueSessionRequest,
+  EnqueueSessionResponse,
+  MeResponse,
+  MobileHealthResponse,
+  SessionGetResponse,
+} from './types';
 
 export const noosApi = {
   health: () => request<MobileHealthResponse>('/api/mobile/health'),
   healthWithBaseUrl: (baseUrl: string) =>
     requestWithBaseUrl<MobileHealthResponse>(baseUrl, '/api/mobile/health'),
+  sessions: {
+    create: (body: EnqueueSessionRequest) =>
+      request<EnqueueSessionResponse>('/api/mobile/sessions', {
+        method: 'POST',
+        body: JSON.stringify(body),
+        timeoutMs: 15_000,
+      }),
+    get: (id: string) => request<SessionGetResponse>(`/api/mobile/sessions/${id}`),
+  },
   auth: {
     signup: (body: {
       loginId: string;

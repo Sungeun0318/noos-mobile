@@ -3,10 +3,10 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { createSession } from '@/api/sessionGateway';
 import type { EnqueueSessionRequest } from '@/api/types';
 import { Button, Card, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
-import { enqueueMock } from '@/screens/journey/enqueueMock';
 import { canAddPendingSession, useSessionStore } from '@/stores/sessionStore';
 import { useStateStore } from '@/stores/stateStore';
 import { color, PLANET_COLORS, PLANETS, radius, space, type, type PlanetId } from '@/theme';
@@ -49,21 +49,37 @@ export function PlanetSelectScreen({ navigation }: { navigation: JourneyNavigati
 
     const durationSec = durationMin * 60;
     const payload: EnqueueSessionRequest = {
-      currentState,
       durationSec,
       idempotencyKey: Crypto.randomUUID(),
-      intentText,
       // DEC-011: lighting is intentionally disabled until lighting integration is re-scoped.
       lightingEnabled: false,
-      measurementId,
       planet: PLANETS[planet].title,
-      source,
-      stateLabel,
     };
+
+    if (currentState) {
+      payload.currentState = currentState;
+    }
+
+    if (stateLabel) {
+      payload.stateLabel = stateLabel;
+    }
+
+    if (intentText) {
+      payload.intentText = intentText;
+    }
+
+    if (source) {
+      payload.source = source;
+    }
+
+    if (measurementId && !measurementId.startsWith('mock_')) {
+      payload.measurementId = measurementId;
+    }
+    // TODO: send measurementId when measure(Gemma) is real.
 
     try {
       setDraft({ durationSec, planet });
-      const response = await enqueueMock(payload);
+      const response = await createSession(payload);
       addPending({
         durationSec,
         enqueuedAt: Date.parse(response.createdAt),
