@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createSession } from '@/api/sessionGateway';
 import type { EnqueueSessionRequest } from '@/api/types';
 import { PlanetImage } from '@/components/PlanetImage';
+import { PlanetHero } from '@/components/PlanetHero';
 import { Button, Card, Toast } from '@/components/ui';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { noosTelemetry } from '@/lib/telemetry';
@@ -14,7 +15,7 @@ import type { JourneyStackParamList } from '@/navigation/JourneyStack';
 import { getMeasurementCtaState } from '@/screens/journey/planetSelectMeasurement';
 import { canAddPendingSession, useSessionStore } from '@/stores/sessionStore';
 import { useStateStore } from '@/stores/stateStore';
-import { color, PLANETS, radius, space, type, type PlanetId } from '@/theme';
+import { color, PLANET_COLORS, PLANETS, radius, space, type, type PlanetId } from '@/theme';
 
 type PlanetSelectNavigation = NativeStackNavigationProp<JourneyStackParamList, 'Journey/PlanetSelect'> & {
   getParent: () => { navigate: (screen: 'Measure' | 'Today') => void } | undefined;
@@ -41,6 +42,7 @@ export function PlanetSelectScreen({ navigation }: { navigation: PlanetSelectNav
   const [durationMin, setDurationMin] = useState<DurationMin>(10);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const heroPlanet = recommendedPlanet ?? 'neptune';
 
   async function startGeneration() {
     const planet = selectedPlanet ?? recommendedPlanet ?? 'neptune';
@@ -133,44 +135,47 @@ export function PlanetSelectScreen({ navigation }: { navigation: PlanetSelectNav
             paddingTop: insets.top + space.xl,
           },
         ]}
-        style={styles.container}
       >
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Journey</Text>
           <Text style={styles.title}>오늘의 행성을 고르세요</Text>
         </View>
 
-      {toast ? <Toast message={toast} variant="warning" /> : null}
-      <MeasurementSourceCard
-        measuredAt={measuredAt}
-        stateLabel={stateLabel}
-        hasMeasurement={!!(measurementId || currentState)}
-        onPress={goMeasure}
-      />
-      {recommendedPlanet ? (
+        {toast ? <Toast message={toast} variant="warning" /> : null}
         <RecommendedHero
-          isSelected={(selectedPlanet ?? recommendedPlanet) === recommendedPlanet}
-          planet={recommendedPlanet}
-          onSelect={() => setSelectedPlanet(recommendedPlanet)}
+          isRecommended={!!recommendedPlanet}
+          isSelected={(selectedPlanet ?? recommendedPlanet ?? 'neptune') === heroPlanet}
+          planet={heroPlanet}
+          onSelect={() => setSelectedPlanet(heroPlanet)}
         />
-      ) : null}
-      {intentText ? <IntentChip intentText={intentText} /> : null}
+        <MeasurementSourceCard
+          measuredAt={measuredAt}
+          stateLabel={stateLabel}
+          hasMeasurement={!!(measurementId || currentState)}
+          onPress={goMeasure}
+        />
+        {intentText ? <IntentChip intentText={intentText} /> : null}
 
-      <PlanetGrid
-        recommendedPlanet={recommendedPlanet}
-        selectedPlanet={selectedPlanet ?? recommendedPlanet ?? null}
-        onSelect={setSelectedPlanet}
-      />
-      <DurationPicker durationMin={durationMin} onChange={setDurationMin} />
-      {durationMin === 60 ? <Toast message="긴 곡은 최대 1시간까지 걸릴 수 있어요." variant="info" /> : null}
-      <LightingToggle />
-        <Button
-          fullWidth
-          label="이 세션 만들기"
-          loading={submitting}
-          onPress={startGeneration}
-          size="lg"
+        <PlanetGrid
+          recommendedPlanet={recommendedPlanet}
+          selectedPlanet={selectedPlanet ?? recommendedPlanet ?? null}
+          onSelect={setSelectedPlanet}
         />
+        <DurationPicker durationMin={durationMin} onChange={setDurationMin} />
+        {durationMin === 60 ? <Toast message="긴 곡은 최대 1시간까지 걸릴 수 있어요." variant="info" /> : null}
+        <LightingToggle />
+        <Card level={2} padding="lg" variant="glass">
+          <View style={styles.ctaStack}>
+            <Text style={styles.ctaMeta}>선택한 행성으로 음악을 만들어요</Text>
+            <Button
+              fullWidth
+              label="이 세션 만들기"
+              loading={submitting}
+              onPress={startGeneration}
+              size="lg"
+            />
+          </View>
+        </Card>
       </ScrollView>
     </ScreenBackdrop>
   );
@@ -190,7 +195,7 @@ function MeasurementSourceCard({
   const cta = getMeasurementCtaState({ hasMeasurement, measuredAt, stateLabel });
 
   return (
-    <Card level={2} padding="lg" variant="glass">
+    <Card level={1} padding="md" variant="compact">
       <View style={styles.measurementRow}>
         <View style={styles.cardStack}>
           <Text style={styles.cardTitleSmall}>{cta.title}</Text>
@@ -203,10 +208,12 @@ function MeasurementSourceCard({
 }
 
 function RecommendedHero({
+  isRecommended,
   planet,
   isSelected,
   onSelect,
 }: {
+  isRecommended: boolean;
   planet: PlanetId;
   isSelected: boolean;
   onSelect: () => void;
@@ -215,22 +222,14 @@ function RecommendedHero({
 
   return (
     <Pressable accessibilityRole="button" onPress={onSelect} style={({ pressed }) => pressed && styles.pressed}>
-      <Card
-        level={1}
-        padding="xl"
-        planetTint={planet}
-        style={isSelected ? styles.selectedCard : undefined}
-        variant="hero"
-      >
-        <View style={styles.recommendRow}>
-          <View style={styles.cardStack}>
-            <Text style={styles.label}>추천 행성</Text>
-            <Text style={styles.cardTitle}>{meta.title}</Text>
-            <Text style={styles.bodyText}>{meta.description}</Text>
-          </View>
-          <PlanetImage planet={planet} round size={heroOrbSize} style={styles.planetImage} />
-        </View>
-      </Card>
+      <View style={[styles.heroShell, isSelected && styles.heroShellSelected]}>
+        <PlanetHero imageSize={heroOrbSize} planet={planet}>
+          <Text style={styles.label}>{isRecommended ? '추천 행성' : '기본 추천'}</Text>
+          <Text style={styles.heroTitle}>{meta.title}</Text>
+          <Text style={styles.bodyText}>{meta.description}</Text>
+          <Text style={styles.heroMood}>{meta.moodTarget}</Text>
+        </PlanetHero>
+      </View>
     </Pressable>
   );
 }
@@ -261,14 +260,21 @@ function PlanetGrid({
               onPress={() => onSelect(planetId)}
               style={({ pressed }) => [
                 styles.planetCard,
-                selected && styles.selectedCard,
+                selected && styles.planetCardSelected,
+                selected && { borderColor: PLANET_COLORS[planetId].secondary },
                 pressed && styles.pressed,
               ]}
             >
-              <PlanetImage planet={planetId} round size={gridOrbSize} style={styles.planetImage} />
+              {/* TODO FE-XX: animate selected scale/ring with reanimated once approved. */}
+              <PlanetImage
+                planet={planetId}
+                round
+                size={gridOrbSize}
+                style={[styles.planetImage, selected && styles.planetImageSelected]}
+              />
               <Text style={styles.planetTitle}>{meta.title}</Text>
               <Text style={styles.planetMood}>{meta.moodTarget}</Text>
-              {recommended ? <Text style={styles.recommendedLabel}>recommended</Text> : null}
+              {recommended ? <Text style={styles.recommendedLabel}>추천</Text> : null}
             </Pressable>
           );
         })}
@@ -336,7 +342,7 @@ function IntentChip({ intentText }: { intentText: string }) {
   );
 }
 
-const heroOrbSize = space['6xl'];
+const heroOrbSize = space['6xl'] + space['4xl'];
 const gridOrbSize = space['4xl'];
 
 const styles = StyleSheet.create({
@@ -351,13 +357,6 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: space.xs,
   },
-  cardTitle: {
-    color: color.text.primary,
-    fontFamily: type.h2.family,
-    fontSize: type.h2.size,
-    fontWeight: type.h2.weight,
-    lineHeight: type.h2.lineHeight,
-  },
   cardTitleSmall: {
     color: color.text.primary,
     fontFamily: type.bodyMd.family,
@@ -365,12 +364,20 @@ const styles = StyleSheet.create({
     fontWeight: type.bodyMd.weight,
     lineHeight: type.bodyMd.lineHeight,
   },
-  container: {
-    backgroundColor: 'transparent',
-  },
   content: {
-    gap: space.lg,
+    gap: space.xl,
     paddingHorizontal: space.xl,
+  },
+  ctaMeta: {
+    color: color.text.secondary,
+    fontFamily: type.small.family,
+    fontSize: type.small.size,
+    fontWeight: type.small.weight,
+    lineHeight: type.small.lineHeight,
+    textAlign: 'center',
+  },
+  ctaStack: {
+    gap: space.md,
   },
   disabledToggle: {
     alignItems: 'flex-start',
@@ -404,6 +411,28 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: space.xs,
+  },
+  heroMood: {
+    color: color.text.primary,
+    fontFamily: type.bodyMd.family,
+    fontSize: type.bodyMd.size,
+    fontWeight: type.bodyMd.weight,
+    lineHeight: type.bodyMd.lineHeight,
+  },
+  heroShell: {
+    borderRadius: radius['2xl'],
+  },
+  heroShellSelected: {
+    borderColor: color.border.strong,
+    borderRadius: radius['2xl'],
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  heroTitle: {
+    color: color.text.primary,
+    fontFamily: type.display.family,
+    fontSize: type.display.size,
+    fontWeight: type.display.weight,
+    lineHeight: type.display.lineHeight,
   },
   intentChip: {
     alignSelf: 'flex-start',
@@ -443,14 +472,19 @@ const styles = StyleSheet.create({
   },
   planetCard: {
     alignItems: 'center',
-    backgroundColor: color.bg.surface,
+    backgroundColor: color.bg.glass,
     borderColor: color.border.subtle,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
     flexBasis: '31%',
     gap: space.xs,
-    minHeight: space['6xl'],
+    minHeight: space['6xl'] + space.lg,
     padding: space.md,
+  },
+  planetCardSelected: {
+    backgroundColor: color.bg.hero,
+    borderWidth: StyleSheet.hairlineWidth,
+    transform: [{ scale: 1.03 }],
   },
   planetMood: {
     color: color.text.tertiary,
@@ -475,10 +509,8 @@ const styles = StyleSheet.create({
     borderColor: color.border.default,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  recommendRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space.lg,
+  planetImageSelected: {
+    borderColor: color.border.strong,
   },
   recommendedLabel: {
     color: color.brand.accent,
@@ -500,7 +532,7 @@ const styles = StyleSheet.create({
   },
   segment: {
     alignItems: 'center',
-    backgroundColor: color.bg.surface,
+    backgroundColor: color.bg.glass,
     borderColor: color.border.default,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
@@ -515,6 +547,7 @@ const styles = StyleSheet.create({
   segmentSelected: {
     backgroundColor: color.brand.accent,
     borderColor: color.brand.accent,
+    transform: [{ scale: 1.02 }],
   },
   segmentText: {
     color: color.text.secondary,
@@ -525,10 +558,6 @@ const styles = StyleSheet.create({
   },
   segmentTextSelected: {
     color: color.text.inverse,
-  },
-  selectedCard: {
-    borderColor: color.brand.accent,
-    borderWidth: StyleSheet.hairlineWidth,
   },
   title: {
     color: color.text.primary,
