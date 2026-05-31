@@ -3,6 +3,7 @@ import { Alert, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-
 
 import { noosApi } from '@/api/noosApi';
 import { queryClient } from '@/api/queryClient';
+import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { Button, Card, Row, Section } from '@/components/ui';
 import { formatLogLine, logger } from '@/lib/logger';
 import { formatTelemetryEvent, noosTelemetry } from '@/lib/telemetry';
@@ -177,45 +178,47 @@ export function DebugScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-      <Section title="상태">
-        <Card cardRadius="sm">
-          <HealthBlock />
-        </Card>
-        <Row
-          label="Simulation mode"
-          right={<Switch onValueChange={setSimulationMode} value={simulationMode} />}
-          value={simulationMode ? 'mock' : 'real'}
-        />
-      </Section>
+    <ScreenBackdrop>
+      <ScrollView contentContainerStyle={styles.content} style={styles.container}>
+        <Section title="상태">
+          <Card cardRadius="sm" variant="glass">
+            <HealthBlock />
+          </Card>
+          <Row
+            label="Simulation mode"
+            right={<Switch onValueChange={setSimulationMode} value={simulationMode} />}
+            value={simulationMode ? 'mock' : 'real'}
+          />
+        </Section>
 
-      <Section title="진단">
-        <Card cardRadius="sm">
-          <Text style={styles.mono}>{diagnostics}</Text>
-        </Card>
-        <Button label="Run diagnostics" loading={running} onPress={runDiagnostics} />
-        <Button label="Clear cache" onPress={clearCache} variant="secondary" />
-        <Button label="Export logs" onPress={exportLogs} variant="secondary" />
-      </Section>
+        <Section title="진단">
+          <Card cardRadius="sm" variant="compact">
+            <Text style={styles.mono}>{diagnostics}</Text>
+          </Card>
+          <Button label="Run diagnostics" loading={running} onPress={runDiagnostics} />
+          <Button label="Clear cache" onPress={clearCache} variant="secondary" />
+          <Button label="Export logs" onPress={exportLogs} variant="secondary" />
+        </Section>
 
-      <Section title="Store dump">
-        <Card cardRadius="sm">
-          <Text style={styles.mono}>{formatDump(storeDump)}</Text>
-        </Card>
-      </Section>
+        <Section title="Store dump">
+          <Card cardRadius="sm" variant="compact">
+            <Text style={styles.mono}>{formatDump(storeDump)}</Text>
+          </Card>
+        </Section>
 
-      <Section title="Log tail">
-        <Card cardRadius="sm">
-          <Text style={styles.mono}>{logLines.join('\n') || '로그 없음'}</Text>
-        </Card>
-      </Section>
+        <Section title="Log tail">
+          <Card cardRadius="sm" variant="compact">
+            <Text style={styles.mono}>{logLines.join('\n') || '로그 없음'}</Text>
+          </Card>
+        </Section>
 
-      <Section title="Telemetry tail">
-        <Card cardRadius="sm">
-          <Text style={styles.mono}>{telemetryLines.join('\n') || '이벤트 없음'}</Text>
-        </Card>
-      </Section>
-    </ScrollView>
+        <Section title="Telemetry tail">
+          <Card cardRadius="sm" variant="compact">
+            <Text style={styles.mono}>{telemetryLines.join('\n') || '이벤트 없음'}</Text>
+          </Card>
+        </Section>
+      </ScrollView>
+    </ScreenBackdrop>
   );
 }
 
@@ -235,7 +238,7 @@ const styles = StyleSheet.create({
     lineHeight: type.caption.lineHeight,
   },
   container: {
-    backgroundColor: color.bg.base,
+    backgroundColor: 'transparent',
   },
   content: {
     gap: space['2xl'],

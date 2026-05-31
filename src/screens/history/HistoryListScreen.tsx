@@ -20,6 +20,13 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { color, PLANETS, space, type } from '@/theme';
 
 type HistoryListProps = NativeStackScreenProps<HistoryStackParamList, 'History/List'>;
+interface HistoryDateGroup {
+  key: string;
+  label: string;
+  sessions: HistorySession[];
+}
+
+const emptyHistorySessions: HistorySession[] = [];
 
 export function HistoryListScreen({ navigation }: HistoryListProps) {
   const insets = useSafeAreaInsets();
@@ -32,7 +39,8 @@ export function HistoryListScreen({ navigation }: HistoryListProps) {
     queryKey: ['history', mode],
     staleTime: 30_000,
   });
-  const sessions = simulationMode ? localSessions : historyQuery.data ?? [];
+  const sessions = simulationMode ? localSessions : historyQuery.data ?? emptyHistorySessions;
+  const groupedSessions = useMemo(() => groupHistorySessions(sessions), [sessions]);
 
   useEffect(() => {
     noosTelemetry.track('history_view', { count: sessions.length });
@@ -89,18 +97,26 @@ export function HistoryListScreen({ navigation }: HistoryListProps) {
         {!simulationMode && historyQuery.isError ? (
           <Text style={styles.metaText}>서버 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</Text>
         ) : null}
-        {sessions.map((session) => (
-          <HistoryCard
-            key={session.sessionId}
-            session={session}
-            onPress={() => {
-              noosTelemetry.track('history_card_tap', {
-                planet: session.planet,
-                sessionId: session.sessionId,
-              });
-              navigation.navigate('History/Detail', { sessionId: session.sessionId });
-            }}
-          />
+        {groupedSessions.map((group) => (
+          <View key={group.key} style={styles.dateSection}>
+            <View style={styles.dateHeader}>
+              <Text style={styles.sectionTitle}>{group.label}</Text>
+              <Text style={styles.metaText}>{group.sessions.length}개 세션</Text>
+            </View>
+            {group.sessions.map((session) => (
+              <HistoryCard
+                key={session.sessionId}
+                session={session}
+                onPress={() => {
+                  noosTelemetry.track('history_card_tap', {
+                    planet: session.planet,
+                    sessionId: session.sessionId,
+                  });
+                  navigation.navigate('History/Detail', { sessionId: session.sessionId });
+                }}
+              />
+            ))}
+          </View>
         ))}
       </ScrollView>
     </ScreenBackdrop>
@@ -116,13 +132,13 @@ function HistoryCard({ session, onPress }: { session: HistorySession; onPress: (
         <View style={styles.cardRow}>
           <PlanetImage planet={session.planet} round size={orbSize} style={styles.planetImage} />
           <View style={styles.cardCopy}>
-            <Text style={styles.cardTitle}>{session.summary?.title ?? planet.trackName}</Text>
-            <Text style={styles.bodyText}>
-              {formatDate(session.completedAt)} · {formatDuration(session.durationSec)}
-            </Text>
-            <Text style={styles.metaText}>
-              {session.stateLabel ?? '상태 기록 없음'} · {formatFeedback(session)}
-            </Text>
+            <View style={styles.cardTitleRow}>
+              <Text style={styles.cardTitle}>{session.summary?.title ?? planet.trackName}</Text>
+              <Text style={styles.durationPill}>{formatDuration(session.durationSec)}</Text>
+            </View>
+            <Text style={styles.bodyText}>{formatTime(session.completedAt)} · {planet.title}</Text>
+            <Text style={styles.metaText}>{session.stateLabel ?? '상태 기록 없음'}</Text>
+            <Text style={styles.feedbackText}>{formatFeedback(session)}</Text>
           </View>
         </View>
       </Card>
@@ -130,11 +146,38 @@ function HistoryCard({ session, onPress }: { session: HistorySession; onPress: (
   );
 }
 
+function groupHistorySessions(sessions: HistorySession[]): HistoryDateGroup[] {
+  return sessions.reduce<HistoryDateGroup[]>((groups, session) => {
+    const key = new Date(session.completedAt).toDateString();
+    const existing = groups.find((group) => group.key === key);
+
+    if (existing) {
+      existing.sessions.push(session);
+      return groups;
+    }
+
+    groups.push({
+      key,
+      label: formatDate(session.completedAt),
+      sessions: [session],
+    });
+
+    return groups;
+  }, []);
+}
+
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('ko-KR', {
     day: 'numeric',
-    month: 'short',
+    month: 'long',
     weekday: 'short',
+  });
+}
+
+function formatTime(value: string) {
+  return new Date(value).toLocaleTimeString('ko-KR', {
+    hour: 'numeric',
+    minute: '2-digit',
   });
 }
 
@@ -164,15 +207,25 @@ const styles = StyleSheet.create({
   },
   cardCopy: {
     flex: 1,
+    flexShrink: 1,
     gap: space.xs,
+    minWidth: 0,
   },
   cardRow: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
     gap: space.md,
   },
+  cardTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
+    justifyContent: 'space-between',
+  },
   cardTitle: {
     color: color.text.primary,
+    flexShrink: 1,
     fontFamily: type.bodyMd.family,
     fontSize: type.bodyMd.size,
     fontWeight: type.bodyMd.weight,
@@ -184,6 +237,21 @@ const styles = StyleSheet.create({
   content: {
     gap: space.lg,
     paddingHorizontal: space.xl,
+  },
+  dateHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  dateSection: {
+    gap: space.sm,
+  },
+  durationPill: {
+    color: color.brand.accent,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    lineHeight: type.caption.lineHeight,
   },
   empty: {
     flex: 1,
@@ -209,12 +277,27 @@ const styles = StyleSheet.create({
     fontWeight: type.small.weight,
     lineHeight: type.small.lineHeight,
   },
+  feedbackText: {
+    color: color.text.secondary,
+    fontFamily: type.small.family,
+    fontSize: type.small.size,
+    fontWeight: type.small.weight,
+    lineHeight: type.small.lineHeight,
+  },
   planetImage: {
     borderColor: color.border.default,
     borderWidth: StyleSheet.hairlineWidth,
   },
   pressed: {
     opacity: 0.85,
+  },
+  sectionTitle: {
+    color: color.text.secondary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    letterSpacing: 0,
+    lineHeight: type.caption.lineHeight,
   },
   title: {
     color: color.text.primary,
