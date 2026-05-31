@@ -1,4 +1,5 @@
 import * as Crypto from 'expo-crypto';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,12 +10,13 @@ import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Card, Toast } from '@/components/ui';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { noosTelemetry } from '@/lib/telemetry';
+import type { JourneyStackParamList } from '@/navigation/JourneyStack';
 import { getMeasurementCtaState } from '@/screens/journey/planetSelectMeasurement';
 import { canAddPendingSession, useSessionStore } from '@/stores/sessionStore';
 import { useStateStore } from '@/stores/stateStore';
 import { color, PLANETS, radius, space, type, type PlanetId } from '@/theme';
 
-type JourneyNavigation = {
+type PlanetSelectNavigation = NativeStackNavigationProp<JourneyStackParamList, 'Journey/PlanetSelect'> & {
   getParent: () => { navigate: (screen: 'Measure' | 'Today') => void } | undefined;
 };
 
@@ -23,7 +25,7 @@ type DurationMin = (typeof durationOptions)[number];
 
 const planetIds = Object.keys(PLANETS) as PlanetId[];
 
-export function PlanetSelectScreen({ navigation }: { navigation: JourneyNavigation }) {
+export function PlanetSelectScreen({ navigation }: { navigation: PlanetSelectNavigation }) {
   const insets = useSafeAreaInsets();
   const measurementId = useStateStore((state) => state.measurementId);
   const currentState = useStateStore((state) => state.currentState);
@@ -103,7 +105,11 @@ export function PlanetSelectScreen({ navigation }: { navigation: JourneyNavigati
         planet,
       });
       // TODO FE-07: prewarm intervention once the endpoint is wired.
-      navigation.getParent()?.navigate('Today');
+      if (response.sessionId) {
+        navigation.navigate('Journey/PendingSession', { sessionId: response.sessionId });
+      } else {
+        navigation.getParent()?.navigate('Today');
+      }
     } catch {
       setToast('세션 생성을 시작하지 못했어요. 다시 시도해 주세요.');
     } finally {

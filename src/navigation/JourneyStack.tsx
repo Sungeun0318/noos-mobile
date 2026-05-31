@@ -3,10 +3,12 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { FeedbackScreen } from '@/screens/journey/FeedbackScreen';
 import { PlanetSelectScreen } from '@/screens/journey/PlanetSelectScreen';
 import { PlayerScreen } from '@/screens/journey/PlayerScreen';
+import { SessionPendingScreen } from '@/screens/journey/SessionPendingScreen';
 import { color } from '@/theme';
 
 export type JourneyStackParamList = {
   'Journey/PlanetSelect': undefined;
+  'Journey/PendingSession': { sessionId: string };
   'Journey/Player': { sessionId: string };
   'Journey/Feedback': { sessionId: string };
 };
@@ -27,6 +29,11 @@ export function JourneyStack() {
         component={PlanetSelectScreen}
         name="Journey/PlanetSelect"
         options={{ title: 'Planet Select' }}
+      />
+      <Stack.Screen
+        component={SessionPendingScreen}
+        name="Journey/PendingSession"
+        options={{ title: 'Generating' }}
       />
       <Stack.Screen
         component={PlayerScreen}
