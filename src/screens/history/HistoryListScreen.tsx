@@ -47,7 +47,7 @@ export function HistoryListScreen({ navigation }: HistoryListProps) {
       <ScreenBackdrop>
         <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
           <EmptyState
-            body="서버에서 완료한 세션을 확인하고 있어."
+            body="서버에서 완료한 세션을 확인하고 있습니다."
             planet="saturn"
             title="기록을 불러오는 중"
           />
@@ -62,7 +62,7 @@ export function HistoryListScreen({ navigation }: HistoryListProps) {
         <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
           <EmptyState
             action={<Button label="첫 세션 시작" onPress={goPlanetSelect} />}
-            body="첫 세션을 만들고 나면 완료 기록이 여기에 쌓여."
+            body="첫 세션을 만들고 나면 완료 기록이 여기에 쌓입니다."
             title="아직 세션이 없어요"
           />
         </View>
@@ -87,7 +87,7 @@ export function HistoryListScreen({ navigation }: HistoryListProps) {
           <Text style={styles.title}>완료한 세션</Text>
         </View>
         {!simulationMode && historyQuery.isError ? (
-          <Text style={styles.metaText}>서버 기록을 불러오지 못했어. 잠시 후 다시 시도해줘.</Text>
+          <Text style={styles.metaText}>서버 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</Text>
         ) : null}
         {sessions.map((session) => (
           <HistoryCard

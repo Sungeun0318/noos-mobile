@@ -84,7 +84,7 @@ export function ManualStateScreen() {
       setFromMeasure(response);
       navigation.navigate('Measure/Result');
     } catch {
-      setError('측정 결과를 만들지 못했어요. 다시 시도해주세요.');
+      setError('측정 결과를 만들지 못했어요. 다시 시도해 주세요.');
     } finally {
       setSubmitting(false);
     }
