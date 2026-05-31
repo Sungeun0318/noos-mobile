@@ -100,7 +100,7 @@ function MainTabs() {
 }
 
 const log = logger.create('RootNavigator');
-const splashMaxMs = 1000;
+const splashMinMs = 1800;
 
 function delay(ms: number) {
   return new Promise<void>((resolve) => {
@@ -152,7 +152,7 @@ function SplashGate({
       // FE-07/FE-11 범위: pending session polling resume / push token sync.
     ]);
 
-    Promise.race([boot, delay(splashMaxMs)]).then(() => {
+    Promise.all([boot, delay(splashMinMs)]).then(() => {
       if (!active) {
         return;
       }
