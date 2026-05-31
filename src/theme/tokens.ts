@@ -6,6 +6,8 @@ export const color = {
     surface: '#12131C',
     surfaceAlt: '#181A26',
     elevated: '#1F2233',
+    glass: 'rgba(18, 19, 28, 0.78)',
+    hero: 'rgba(31, 34, 51, 0.84)',
     overlay: 'rgba(10, 11, 18, 0.72)',
   },
   text: {

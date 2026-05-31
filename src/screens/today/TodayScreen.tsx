@@ -3,7 +3,9 @@ import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EmptyState } from '@/components/EmptyState';
 import { Button, Card } from '@/components/ui';
+import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { GuestPromptCard } from '@/components/GuestPromptCard';
 import { PlanetImage } from '@/components/PlanetImage';
 import { noosTelemetry } from '@/lib/telemetry';
@@ -59,33 +61,39 @@ export function TodayScreen() {
 
   if (!backendBaseUrl) {
     return (
-      <View style={[styles.gate, { paddingTop: insets.top + space['3xl'] }]}>
-        <Text style={styles.gateTitle}>백엔드 연결 설정</Text>
-        <Text style={styles.gateCopy}>NOOS 모바일 API 주소를 먼저 연결해야 Today를 볼 수 있어요.</Text>
-        <Button label="설정으로 이동" onPress={() => navigation.navigate('Settings')} />
-      </View>
+      <ScreenBackdrop>
+        <View style={[styles.gate, { paddingTop: insets.top + space['3xl'] }]}>
+          <EmptyState
+            action={<Button label="설정으로 이동" onPress={() => navigation.navigate('Settings')} />}
+            body="NOOS 모바일 API 주소를 먼저 연결해야 Today를 볼 수 있어요."
+            title="백엔드 연결 설정"
+          />
+        </View>
+      </ScreenBackdrop>
     );
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingBottom: insets.bottom + space['6xl'],
-          paddingTop: insets.top + space.xl,
-        },
-      ]}
-      style={styles.container}
-    >
-      <Header displayName={mode === 'authed' ? user?.displayName : null} />
-      <GuestPromptCard />
-      <StateCard measuredAt={measuredAt} onMeasure={goMeasure} source={source} stateLabel={stateLabel} />
-      <RecommendedPlanetCard planet={recommendedPlanet} />
-      <PendingSessionsBlock sessions={pendingSessions} />
-      <Button fullWidth label="지금 세션 시작" onPress={goStartSession} size="lg" />
-      <RecentSessionMini session={recentSession} />
-    </ScrollView>
+    <ScreenBackdrop planet={recommendedPlanet ?? undefined}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: insets.bottom + space['6xl'],
+            paddingTop: insets.top + space.xl,
+          },
+        ]}
+        style={styles.container}
+      >
+        <Header displayName={mode === 'authed' ? user?.displayName : null} />
+        <GuestPromptCard />
+        <StateCard measuredAt={measuredAt} onMeasure={goMeasure} source={source} stateLabel={stateLabel} />
+        <RecommendedPlanetCard planet={recommendedPlanet} />
+        <PendingSessionsBlock sessions={pendingSessions} />
+        <Button fullWidth label="지금 세션 시작" onPress={goStartSession} size="lg" />
+        <RecentSessionMini session={recentSession} />
+      </ScrollView>
+    </ScreenBackdrop>
   );
 }
 
@@ -156,7 +164,7 @@ function StateCard({
 }) {
   if (!stateLabel) {
     return (
-      <Card level={2} padding="xl">
+      <Card level={2} padding="xl" variant="glass">
         <View style={styles.cardStack}>
           <Text style={styles.cardTitle}>아직 측정 기록이 없어요</Text>
           <Text style={styles.bodyText}>지금 상태를 입력하면 더 정확한 행성 추천을 받을 수 있어요.</Text>
@@ -167,7 +175,7 @@ function StateCard({
   }
 
   return (
-    <Card level={2} padding="xl">
+    <Card level={2} padding="xl" variant="hero">
       <View style={styles.cardStack}>
         <Text style={styles.label}>마지막 측정</Text>
         <Text style={styles.stateLabel}>{stateLabel}</Text>
@@ -186,7 +194,7 @@ function RecommendedPlanetCard({ planet: measuredPlanet }: { planet: keyof typeo
   const subtitle = measuredPlanet ? planet.description : '측정 후 더 정확해져요';
 
   return (
-    <Card level={1} padding="xl" planetTint={planet.id}>
+    <Card level={1} padding="xl" planetTint={planet.id} variant="glass">
       <View style={styles.recommendRow}>
         <View style={styles.cardStack}>
           <Text style={styles.label}>추천 행성</Text>
@@ -244,7 +252,7 @@ function PendingSessionCard({ session }: { session: PendingSession }) {
   }
 
   return (
-    <Card level={2} padding="lg" planetTint={session.planet}>
+    <Card level={2} padding="lg" planetTint={session.planet} variant="glass">
       <View style={styles.pendingContent}>
         <View style={styles.pendingHeader}>
           <Text style={styles.pendingTitle}>
@@ -358,7 +366,7 @@ function RecentSessionMini({ session }: { session: HistorySession | null }) {
       }}
       style={({ pressed }) => pressed && styles.pressed}
     >
-      <Card level={1} padding="lg" planetTint={session.planet}>
+      <Card level={1} padding="lg" planetTint={session.planet} variant="glass">
         <View style={styles.recentRow}>
           <View style={styles.recentCopy}>
             <PlanetImage planet={session.planet} round size={space['4xl']} style={styles.planetImage} />
@@ -405,7 +413,7 @@ const styles = StyleSheet.create({
     lineHeight: type.h2.lineHeight,
   },
   container: {
-    backgroundColor: color.bg.base,
+    backgroundColor: 'transparent',
   },
   content: {
     gap: space.lg,
@@ -420,25 +428,10 @@ const styles = StyleSheet.create({
     lineHeight: type.caption.lineHeight,
   },
   gate: {
-    backgroundColor: color.bg.base,
     flex: 1,
     gap: space.lg,
     justifyContent: 'center',
     padding: space.xl,
-  },
-  gateCopy: {
-    color: color.text.secondary,
-    fontFamily: type.body.family,
-    fontSize: type.body.size,
-    fontWeight: type.body.weight,
-    lineHeight: type.body.lineHeight,
-  },
-  gateTitle: {
-    color: color.text.primary,
-    fontFamily: type.h1.family,
-    fontSize: type.h1.size,
-    fontWeight: type.h1.weight,
-    lineHeight: type.h1.lineHeight,
   },
   header: {
     alignItems: 'center',

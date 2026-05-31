@@ -3,7 +3,10 @@ import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EmptyState } from '@/components/EmptyState';
+import { PlanetHero } from '@/components/PlanetHero';
 import { PlanetImage } from '@/components/PlanetImage';
+import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { StateAxisChart } from '@/components/StateAxisChart';
 import { Button, Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
@@ -31,11 +34,16 @@ export function MeasureResultScreen() {
 
   if (!state.currentState || !state.recommendedPlanet) {
     return (
-      <View style={[styles.empty, { paddingTop: insets.top + space.xl }]}>
-        <Text style={styles.title}>결과를 받지 못했어요</Text>
-        <Text style={styles.bodyText}>다시 측정하면 추천 행성을 만들 수 있어요.</Text>
-        <Button label="다시 측정하기" onPress={() => navigation.navigate('Measure/Manual')} />
-      </View>
+      <ScreenBackdrop>
+        <View style={[styles.empty, { paddingTop: insets.top + space.xl }]}>
+          <EmptyState
+            action={<Button label="다시 측정하기" onPress={() => navigation.navigate('Measure/Manual')} />}
+            body="다시 측정하면 추천 행성을 만들 수 있어요."
+            planet="earth"
+            title="결과를 받지 못했어요"
+          />
+        </View>
+      </ScreenBackdrop>
     );
   }
 
@@ -51,48 +59,48 @@ export function MeasureResultScreen() {
   const confidence = state.confidence ?? 0;
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingBottom: insets.bottom + space['6xl'],
-        },
-      ]}
-      style={styles.container}
-    >
-      <Card level={2} padding="xl">
-        <View style={styles.hero}>
+    <ScreenBackdrop planet={recommendedPlanet}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: insets.bottom + space['6xl'],
+          },
+        ]}
+        style={styles.container}
+      >
+        <PlanetHero planet={recommendedPlanet}>
           <Text style={styles.label}>측정 결과</Text>
           <View style={styles.titleRow}>
-            <Text style={styles.stateLabel}>{state.stateLabel}</Text>
+            <Text style={styles.stateLabel}>{state.stateLabel ?? '상태 결과'}</Text>
             {confidence < 0.4 ? <Text style={styles.lowConfidence}>(자신 없음)</Text> : null}
           </View>
           <View style={styles.badgeRow}>
             <SourceBadge source={state.source} />
             <Text style={styles.confidence}>신뢰도 {Math.round(confidence * 100)}%</Text>
           </View>
+        </PlanetHero>
+
+        <StateAxisChart values={currentState} />
+        <RecommendedPlanetCard planet={recommendedPlanet} />
+        <AlternatesRow planets={state.alternates} />
+
+        <View style={styles.actions}>
+          <Button
+            fullWidth
+            label="이 행성으로 세션 시작"
+            onPress={() => goJourney(recommendedPlanet)}
+            size="lg"
+          />
+          <Button
+            fullWidth
+            label="다른 행성 보기"
+            onPress={() => goJourney(recommendedPlanet)}
+            variant="secondary"
+          />
         </View>
-      </Card>
-
-      <StateAxisChart values={currentState} />
-      <RecommendedPlanetCard planet={recommendedPlanet} />
-      <AlternatesRow planets={state.alternates} />
-
-      <View style={styles.actions}>
-        <Button
-          fullWidth
-          label="이 행성으로 세션 시작"
-          onPress={() => goJourney(recommendedPlanet)}
-          size="lg"
-        />
-        <Button
-          fullWidth
-          label="다른 행성 보기"
-          onPress={() => goJourney(recommendedPlanet)}
-          variant="secondary"
-        />
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </ScreenBackdrop>
   );
 }
 
@@ -110,7 +118,7 @@ function RecommendedPlanetCard({ planet }: { planet: PlanetId }) {
   const meta = PLANETS[planet];
 
   return (
-    <Card level={2} padding="xl" planetTint={planet}>
+    <Card level={2} padding="xl" planetTint={planet} variant="glass">
       <View style={styles.planetRow}>
         <View style={styles.planetCopy}>
           <Text style={styles.label}>추천 행성</Text>
@@ -198,21 +206,17 @@ const styles = StyleSheet.create({
     lineHeight: type.small.lineHeight,
   },
   container: {
-    backgroundColor: color.bg.base,
+    backgroundColor: 'transparent',
   },
   content: {
     gap: space.lg,
     padding: space.xl,
   },
   empty: {
-    backgroundColor: color.bg.base,
     flex: 1,
     gap: space.lg,
     justifyContent: 'center',
     padding: space.xl,
-  },
-  hero: {
-    gap: space.md,
   },
   label: {
     color: color.text.tertiary,
