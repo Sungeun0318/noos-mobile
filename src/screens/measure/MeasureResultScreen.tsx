@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { EegBands } from '@/api/types';
 import { EmptyState } from '@/components/EmptyState';
 import { PlanetHero } from '@/components/PlanetHero';
 import { PlanetImage } from '@/components/PlanetImage';
@@ -10,8 +11,9 @@ import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { StateAxisChart } from '@/components/StateAxisChart';
 import { Button, Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
+import { shouldShowEegBands } from '@/screens/measure/measureResultLogic';
 import { useStateStore } from '@/stores/stateStore';
-import { color, PLANETS, radius, space, type, type PlanetId } from '@/theme';
+import { color, PLANET_COLORS, PLANETS, radius, space, type, type PlanetId } from '@/theme';
 
 type ResultNavigation = {
   getParent: () => { navigate: (screen: 'Journey' | 'Measure') => void } | undefined;
@@ -49,6 +51,7 @@ export function MeasureResultScreen() {
 
   const recommendedPlanet = state.recommendedPlanet;
   const currentState = state.currentState;
+  const showEegBands = shouldShowEegBands(state.source, state.eegBands);
 
   function goJourney(planet: PlanetId) {
     noosTelemetry.track('measure_result_start_tap', { planet });
@@ -67,7 +70,6 @@ export function MeasureResultScreen() {
             paddingBottom: insets.bottom + space['6xl'],
           },
         ]}
-        style={styles.container}
       >
         <PlanetHero planet={recommendedPlanet}>
           <Text style={styles.label}>측정 결과</Text>
@@ -82,6 +84,9 @@ export function MeasureResultScreen() {
         </PlanetHero>
 
         <StateAxisChart values={currentState} />
+        {showEegBands && state.eegBands ? (
+          <EegBandsChart bands={state.eegBands} planet={recommendedPlanet} />
+        ) : null}
         <RecommendedPlanetCard planet={recommendedPlanet} />
         <AlternatesRow planets={state.alternates} />
 
@@ -101,6 +106,58 @@ export function MeasureResultScreen() {
         </View>
       </ScrollView>
     </ScreenBackdrop>
+  );
+}
+
+const eegBandLabels: Array<{ key: keyof EegBands; label: string }> = [
+  { key: 'delta', label: 'Delta' },
+  { key: 'theta', label: 'Theta' },
+  { key: 'alpha', label: 'Alpha' },
+  { key: 'beta', label: 'Beta' },
+  { key: 'gamma', label: 'Gamma' },
+];
+
+function EegBandsChart({ bands, planet }: { bands: EegBands; planet: PlanetId }) {
+  const values = eegBandLabels.map(({ key }) => bands[key]);
+  const maxValue = Math.max(...values, 1);
+
+  return (
+    <Card level={2} padding="lg" variant="glass">
+      <View style={styles.chartStack}>
+        <View style={styles.chartHeader}>
+          <View style={styles.chartCopy}>
+            <Text style={styles.sectionTitle}>EEG bands</Text>
+            <Text style={styles.bodyText}>Muse에서 측정한 상대 밴드 파워</Text>
+          </View>
+          <Text style={styles.chartMeta}>상대값</Text>
+        </View>
+        <View style={styles.bandStack}>
+          {eegBandLabels.map(({ key, label }) => {
+            const value = bands[key];
+            const ratio = Math.max(0, Math.min(value / maxValue, 1));
+
+            return (
+              <View key={key} style={styles.bandRow}>
+                <Text style={styles.bandLabel}>{label}</Text>
+                <View style={styles.bandTrack}>
+                  <View
+                    style={[
+                      styles.bandFill,
+                      {
+                        backgroundColor: PLANET_COLORS[planet].secondary,
+                        flex: ratio,
+                      },
+                    ]}
+                  />
+                  <View style={{ flex: 1 - ratio }} />
+                </View>
+                <Text style={styles.bandValue}>{Math.round(value)}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    </Card>
   );
 }
 
@@ -205,11 +262,64 @@ const styles = StyleSheet.create({
     fontWeight: type.small.weight,
     lineHeight: type.small.lineHeight,
   },
-  container: {
-    backgroundColor: 'transparent',
+  bandFill: {
+    borderRadius: radius.pill,
+  },
+  bandLabel: {
+    color: color.text.secondary,
+    fontFamily: type.small.family,
+    fontSize: type.small.size,
+    fontWeight: type.small.weight,
+    lineHeight: type.small.lineHeight,
+    width: space['5xl'],
+  },
+  bandRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space.sm,
+  },
+  bandStack: {
+    gap: space.md,
+  },
+  bandTrack: {
+    backgroundColor: color.bg.elevated,
+    borderRadius: radius.pill,
+    flex: 1,
+    flexDirection: 'row',
+    height: space.sm,
+    overflow: 'hidden',
+  },
+  bandValue: {
+    color: color.text.tertiary,
+    fontFamily: type.tabular.family,
+    fontSize: type.tabular.size,
+    fontWeight: type.tabular.weight,
+    lineHeight: type.tabular.lineHeight,
+    textAlign: 'right',
+    width: space['4xl'],
+  },
+  chartCopy: {
+    flex: 1,
+    gap: space.xs,
+  },
+  chartHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: space.lg,
+    justifyContent: 'space-between',
+  },
+  chartMeta: {
+    color: color.text.tertiary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    lineHeight: type.caption.lineHeight,
+  },
+  chartStack: {
+    gap: space.lg,
   },
   content: {
-    gap: space.lg,
+    gap: space.xl,
     padding: space.xl,
   },
   empty: {
