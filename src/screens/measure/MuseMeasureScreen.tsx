@@ -4,6 +4,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { Button, Card, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { MeasureStackParamList } from '@/navigation/MeasureStack';
@@ -92,43 +93,56 @@ export function MuseMeasureScreen() {
     navigation.goBack();
   }
 
-  const progress = elapsedSec / measureDurationSec;
+  const progress = Math.max(0, Math.min(elapsedSec / measureDurationSec, 1));
+  const remainingSec = Math.max(0, measureDurationSec - elapsedSec);
 
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-      {error ? <Toast message={error} variant="danger" /> : null}
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>Muse EEG</Text>
-        <Text style={styles.title}>60초 동안 측정 중</Text>
-        <Text style={styles.description}>화면을 켜둔 채로 편하게 호흡해.</Text>
-      </View>
+    <ScreenBackdrop planet="earth">
+      <ScrollView contentContainerStyle={styles.content}>
+        {error ? <Toast message={error} variant="danger" /> : null}
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>Muse EEG</Text>
+          <Text style={styles.title}>60초 동안 측정 중</Text>
+          <Text style={styles.description}>화면을 켜둔 채로 편하게 호흡해.</Text>
+        </View>
 
-      <Card level={1} padding="xl">
-        <View style={styles.measureStack}>
-          <View style={styles.qualityRow}>
-            <Text style={styles.cardTitle}>신호 품질</Text>
-            <Text style={styles.metric}>{Math.round(signalScore * 100)}%</Text>
+        <Card level={2} padding="xl" variant="hero">
+          <View style={styles.measureStack}>
+            <View style={styles.timerStage}>
+              <View style={styles.signalRing}>
+                {/* TODO FE-XX: animate this signal ring and band preview with reanimated once approved. */}
+                <Text style={styles.timerText}>{remainingSec}</Text>
+                <Text style={styles.timerUnit}>sec</Text>
+              </View>
+            </View>
+            <View style={styles.qualityRow}>
+              <View>
+                <Text style={styles.cardTitle}>신호 품질</Text>
+                <Text style={styles.description}>{phaseLabel(phase)}</Text>
+              </View>
+              <Text style={styles.metricLarge}>{Math.round(signalScore * 100)}%</Text>
+            </View>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { flex: progress }]} />
+              <View style={{ flex: 1 - progress }} />
+            </View>
+            <View style={styles.qualityRow}>
+              <Text style={styles.description}>샘플 {sampleBufferLen}</Text>
+              <Text style={styles.metric}>{museDeviceName ?? 'Muse'}</Text>
+            </View>
           </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { flex: progress }]} />
-            <View style={{ flex: 1 - progress }} />
-          </View>
+        </Card>
+
+        <Card level={1} padding="lg" variant="glass">
           <View style={styles.qualityRow}>
-            <Text style={styles.description}>{phaseLabel(phase)}</Text>
+            <Text style={styles.cardTitle}>진행률</Text>
             <Text style={styles.metric}>{elapsedSec}s / {measureDurationSec}s</Text>
           </View>
-        </View>
-      </Card>
+        </Card>
 
-      <Card level={2} padding="lg">
-        <View style={styles.measureStack}>
-          <Text style={styles.cardTitle}>샘플 버퍼</Text>
-          <Text style={styles.description}>{sampleBufferLen} samples · {museDeviceName ?? 'Muse'}</Text>
-        </View>
-      </Card>
-
-      <Button fullWidth label="측정 취소" onPress={cancel} variant="secondary" />
-    </ScrollView>
+        <Button fullWidth label="측정 취소" onPress={cancel} variant="secondary" />
+      </ScrollView>
+    </ScreenBackdrop>
   );
 }
 
@@ -151,9 +165,6 @@ const styles = StyleSheet.create({
     fontSize: type.h3.size,
     fontWeight: type.h3.weight,
     lineHeight: type.h3.lineHeight,
-  },
-  container: {
-    backgroundColor: color.bg.base,
   },
   content: {
     gap: space.xl,
@@ -187,6 +198,13 @@ const styles = StyleSheet.create({
     fontWeight: type.tabular.weight,
     lineHeight: type.tabular.lineHeight,
   },
+  metricLarge: {
+    color: color.text.primary,
+    fontFamily: type.display.family,
+    fontSize: type.display.size,
+    fontWeight: type.display.weight,
+    lineHeight: type.display.lineHeight,
+  },
   progressFill: {
     backgroundColor: color.brand.accent,
     borderRadius: radius.pill,
@@ -195,13 +213,41 @@ const styles = StyleSheet.create({
     backgroundColor: color.border.default,
     borderRadius: radius.pill,
     flexDirection: 'row',
-    height: space.sm,
+    height: space.md,
     overflow: 'hidden',
   },
   qualityRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  signalRing: {
+    alignItems: 'center',
+    backgroundColor: color.bg.glass,
+    borderColor: color.border.strong,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: space['6xl'] * 2,
+    justifyContent: 'center',
+    width: space['6xl'] * 2,
+  },
+  timerStage: {
+    alignItems: 'center',
+    paddingVertical: space.lg,
+  },
+  timerText: {
+    color: color.text.primary,
+    fontFamily: type.display.family,
+    fontSize: type.display.size,
+    fontWeight: type.display.weight,
+    lineHeight: type.display.lineHeight,
+  },
+  timerUnit: {
+    color: color.text.tertiary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    lineHeight: type.caption.lineHeight,
   },
   title: {
     color: color.text.primary,

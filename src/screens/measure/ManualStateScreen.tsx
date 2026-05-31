@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { Button, Card, TextInput, Toast } from '@/components/ui';
 import type { MeasureStackParamList } from '@/navigation/MeasureStack';
 import { noosTelemetry } from '@/lib/telemetry';
@@ -90,86 +91,125 @@ export function ManualStateScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-      {error ? <Toast message={error} variant="danger" /> : null}
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>Validated Survey</Text>
-        <Text style={styles.title}>{STATE_SURVEY_HEADER_TITLE}</Text>
-        <Text style={styles.description}>{STATE_SURVEY_HEADER_SUBTITLE}</Text>
-      </View>
+    <ScreenBackdrop planet="earth">
+      <ScrollView contentContainerStyle={styles.content}>
+        {error ? <Toast message={error} variant="danger" /> : null}
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>Validated Survey</Text>
+          <Text style={styles.title}>{STATE_SURVEY_HEADER_TITLE}</Text>
+          <Text style={styles.description}>{STATE_SURVEY_HEADER_SUBTITLE}</Text>
+        </View>
 
-      <View style={styles.progressHeader}>
-        <Text style={styles.progressText}>
-          응답 완료 {answeredCount}/{STATE_SURVEY_TOTAL_ITEMS}
-        </Text>
-        <Text style={styles.progressText}>{Math.round(progress * 100)}%</Text>
-      </View>
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
-      </View>
+        <Card level={1} padding="lg" variant="glass">
+          <View style={styles.progressStack}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressText}>
+                응답 완료 {answeredCount}/{STATE_SURVEY_TOTAL_ITEMS}
+              </Text>
+              <Text style={styles.progressText}>{Math.round(progress * 100)}%</Text>
+            </View>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+            </View>
+            <SectionProgressRail currentIndex={sectionIndex} />
+          </View>
+        </Card>
 
-      <Card level={1} padding="lg">
-        <View style={styles.sectionHeader}>
-          <View style={styles.metaRow}>
-            <Text style={styles.sectionKicker}>{section.kicker}</Text>
-            <Text style={styles.sectionKicker}>
-              섹션 {sectionIndex + 1}/{STATE_SURVEY_SECTIONS.length}
+        <Card level={2} padding="lg" variant="hero">
+          <View style={styles.sectionHeader}>
+            <View style={styles.metaRow}>
+              <Text style={styles.sectionKicker}>{section.kicker}</Text>
+              <Text style={styles.sectionKicker}>
+                섹션 {sectionIndex + 1}/{STATE_SURVEY_SECTIONS.length}
+              </Text>
+            </View>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <Text style={styles.description}>{section.description}</Text>
+          </View>
+
+          <View style={styles.questionList}>
+            {section.questions.map((question) => (
+              <SurveyQuestion
+                key={question.key}
+                options={section.options}
+                question={question}
+                value={answers[question.key]}
+                onChange={setAnswer}
+              />
+            ))}
+          </View>
+        </Card>
+
+        <TextInput
+          label="지금 어떤 상태로 가고 싶나요?"
+          maxLength={120}
+          multiline
+          onChangeText={setIntentText}
+          placeholder="예: 집중해서 코딩하고 싶어"
+          value={intentText}
+        />
+
+        {withEeg ? (
+          <Card level={2} padding="lg" variant="glass">
+            <Text style={styles.description}>Muse가 연결됐어. 이어서 60초 EEG 측정으로 정확도를 높일 수 있어.</Text>
+          </Card>
+        ) : null}
+
+        <Text style={styles.note}>{STATE_SURVEY_METHOD_NOTE}</Text>
+
+        <View style={styles.actions}>
+          <Button disabled={sectionIndex === 0 || submitting} label="이전" onPress={goPrev} variant="secondary" />
+          {!isLastSection ? (
+            <Button
+              disabled={!sectionComplete}
+              label="다음"
+              onPress={goNext}
+              variant="primary"
+            />
+          ) : (
+            <Button
+              disabled={!sectionComplete}
+              label={withEeg ? '다음' : '이 결과로 진행'}
+              loading={submitting}
+              onPress={submit}
+              variant="primary"
+            />
+          )}
+        </View>
+      </ScrollView>
+    </ScreenBackdrop>
+  );
+}
+
+function SectionProgressRail({ currentIndex }: { currentIndex: number }) {
+  return (
+    <View style={styles.rail}>
+      {STATE_SURVEY_SECTIONS.map((section, index) => {
+        const active = index === currentIndex;
+        const complete = index < currentIndex;
+
+        return (
+          <View
+            key={section.id}
+            style={[
+              styles.railItem,
+              complete && styles.railItemComplete,
+              active && styles.railItemActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.railText,
+                complete && styles.railTextComplete,
+                active && styles.railTextActive,
+              ]}
+            >
+              {index + 1}
             </Text>
           </View>
-          <Text style={styles.sectionTitle}>{section.title}</Text>
-          <Text style={styles.description}>{section.description}</Text>
-        </View>
-
-        <View style={styles.questionList}>
-          {section.questions.map((question) => (
-            <SurveyQuestion
-              key={question.key}
-              options={section.options}
-              question={question}
-              value={answers[question.key]}
-              onChange={setAnswer}
-            />
-          ))}
-        </View>
-      </Card>
-
-      <TextInput
-        label="지금 어떤 상태로 가고 싶나요?"
-        maxLength={120}
-        multiline
-        onChangeText={setIntentText}
-        placeholder="예: 집중해서 코딩하고 싶어"
-        value={intentText}
-      />
-
-      {withEeg ? (
-        <Card level={2} padding="lg">
-          <Text style={styles.description}>Muse가 연결됐어. 이어서 60초 EEG 측정으로 정확도를 높일 수 있어.</Text>
-        </Card>
-      ) : null}
-
-      <Text style={styles.note}>{STATE_SURVEY_METHOD_NOTE}</Text>
-
-      <View style={styles.actions}>
-        <Button disabled={sectionIndex === 0 || submitting} label="이전" onPress={goPrev} variant="secondary" />
-        {!isLastSection ? (
-          <Button
-            disabled={!sectionComplete}
-            label="다음"
-            onPress={goNext}
-            variant="primary"
-          />
-        ) : (
-          <Button
-            disabled={!sectionComplete}
-            label={withEeg ? '다음' : '이 결과로 진행'}
-            loading={submitting}
-            onPress={submit}
-            variant="primary"
-          />
-        )}
-      </View>
-    </ScrollView>
+        );
+      })}
+    </View>
   );
 }
 
@@ -223,9 +263,6 @@ const styles = StyleSheet.create({
     gap: space.sm,
     justifyContent: 'space-between',
   },
-  container: {
-    backgroundColor: color.bg.base,
-  },
   content: {
     gap: space.xl,
     padding: space.xl,
@@ -261,9 +298,9 @@ const styles = StyleSheet.create({
   },
   option: {
     alignItems: 'center',
-    backgroundColor: color.bg.surfaceAlt,
+    backgroundColor: color.bg.glass,
     borderColor: color.border.default,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     flexBasis: '31%',
     gap: space.xs,
@@ -290,6 +327,7 @@ const styles = StyleSheet.create({
   optionSelected: {
     backgroundColor: color.brand.accent,
     borderColor: color.brand.accent,
+    transform: [{ scale: 1.02 }],
   },
   optionTextSelected: {
     color: color.text.inverse,
@@ -316,6 +354,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  progressStack: {
+    gap: space.md,
+  },
   progressText: {
     color: color.text.secondary,
     fontFamily: type.caption.family,
@@ -341,6 +382,41 @@ const styles = StyleSheet.create({
     fontSize: type.bodyMd.size,
     fontWeight: type.bodyMd.weight,
     lineHeight: type.bodyMd.lineHeight,
+  },
+  rail: {
+    flexDirection: 'row',
+    gap: space.sm,
+  },
+  railItem: {
+    alignItems: 'center',
+    backgroundColor: color.bg.surfaceAlt,
+    borderColor: color.border.subtle,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    flex: 1,
+    height: space['2xl'],
+    justifyContent: 'center',
+  },
+  railItemActive: {
+    backgroundColor: color.brand.accent,
+    borderColor: color.brand.accent,
+  },
+  railItemComplete: {
+    backgroundColor: color.bg.hero,
+    borderColor: color.border.default,
+  },
+  railText: {
+    color: color.text.tertiary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    lineHeight: type.caption.lineHeight,
+  },
+  railTextActive: {
+    color: color.text.inverse,
+  },
+  railTextComplete: {
+    color: color.text.primary,
   },
   sectionHeader: {
     gap: space.sm,
