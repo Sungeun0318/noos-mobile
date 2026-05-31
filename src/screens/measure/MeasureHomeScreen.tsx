@@ -32,7 +32,7 @@ export function MeasureHomeScreen() {
 
   return (
     <ScreenBackdrop planet="earth">
-      <ScrollView contentContainerStyle={styles.content} style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Measure</Text>
           <Text style={styles.title}>측정 방식을 선택해</Text>
@@ -43,16 +43,18 @@ export function MeasureHomeScreen() {
 
         <View style={styles.stack}>
           <MeasureMethodCard
-            description="가상 Muse-SIM으로 EEG 밴드를 수집하는 흐름을 확인해요."
+            description="Muse 연결 후 EEG만 측정하거나, 설문을 더해 hybrid 결과로 진행해."
+            iconLabel="EEG"
             label="Muse로 측정"
             onPress={() => selectMethod('muse')}
-            tag="시뮬레이션"
+            tag="빠른 측정"
           />
           <MeasureMethodCard
-            description="네 가지 설문만으로 빠르게 현재 상태를 기록해요."
-            label="수동 설문"
+            description="19문항 검증 설문으로 지금의 집중, 스트레스, 피로, 이완 상태를 계산해."
+            iconLabel="19"
+            label="설문으로 측정"
             onPress={() => selectMethod('manual')}
-            tag="기본"
+            tag="검증 설문"
           />
         </View>
       </ScrollView>
@@ -81,22 +83,29 @@ function DeviceStatusInline({
 function MeasureMethodCard({
   label,
   description,
+  iconLabel,
   tag,
   onPress,
 }: {
   label: string;
   description: string;
+  iconLabel: string;
   tag: string;
   onPress: () => void;
 }) {
   return (
-    <Card level={1} onPress={onPress} padding="xl" variant="glass">
-      <View style={styles.cardStack}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{label}</Text>
-          <Text style={styles.tag}>{tag}</Text>
+    <Card level={2} onPress={onPress} padding="xl" variant="hero">
+      <View style={styles.methodRow}>
+        <View style={styles.methodIcon}>
+          <Text style={styles.methodIconText}>{iconLabel}</Text>
         </View>
-        <Text style={styles.description}>{description}</Text>
+        <View style={styles.cardStack}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>{label}</Text>
+            <Text style={styles.tag}>{tag}</Text>
+          </View>
+          <Text style={styles.description}>{description}</Text>
+        </View>
       </View>
     </Card>
   );
@@ -119,12 +128,31 @@ const styles = StyleSheet.create({
     fontWeight: type.h2.weight,
     lineHeight: type.h2.lineHeight,
   },
-  container: {
-    backgroundColor: 'transparent',
-  },
   content: {
     gap: space.xl,
     padding: space.xl,
+  },
+  methodIcon: {
+    alignItems: 'center',
+    backgroundColor: color.bg.glass,
+    borderColor: color.border.default,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: space['6xl'],
+    justifyContent: 'center',
+    width: space['6xl'],
+  },
+  methodIconText: {
+    color: color.text.primary,
+    fontFamily: type.h3.family,
+    fontSize: type.h3.size,
+    fontWeight: type.h3.weight,
+    lineHeight: type.h3.lineHeight,
+  },
+  methodRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space.lg,
   },
   description: {
     color: color.text.secondary,
@@ -166,8 +194,8 @@ const styles = StyleSheet.create({
   statusRow: {
     alignItems: 'center',
     backgroundColor: color.bg.glass,
-    borderColor: color.border.subtle,
-    borderRadius: radius.lg,
+    borderColor: color.border.default,
+    borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: space.sm,

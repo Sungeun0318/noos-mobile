@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { Button, Card, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { MeasureStackParamList } from '@/navigation/MeasureStack';
@@ -11,7 +12,7 @@ import type { SimulatedMuseDevice } from '@/screens/measure/museSimulator';
 import { useDeviceStore } from '@/stores/deviceStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useStateStore } from '@/stores/stateStore';
-import { color, space, type } from '@/theme';
+import { color, radius, space, type } from '@/theme';
 
 type MuseConnectNavigation = NativeStackNavigationProp<MeasureStackParamList, 'Measure/MuseConnect'>;
 
@@ -87,113 +88,125 @@ export function MuseConnectScreen() {
   }, []);
 
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-      {error ? <Toast message={error} variant="danger" /> : null}
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>Muse</Text>
-        <Text style={styles.title}>Muse를 연결해</Text>
-        <Text style={styles.description}>
-          {simulationMode ? 'Muse-SIM으로 연결 흐름을 검증해.' : '실제 Muse 기기를 Bluetooth로 찾아 연결해.'}
-        </Text>
-      </View>
-
-      <Card level={1} padding="lg">
-        <View style={styles.stack}>
-          <Text style={styles.cardTitle}>권한</Text>
+    <ScreenBackdrop planet="earth">
+      <ScrollView contentContainerStyle={styles.content}>
+        {error ? <Toast message={error} variant="danger" /> : null}
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>Muse</Text>
+          <Text style={styles.title}>Muse를 연결해</Text>
           <Text style={styles.description}>
-            {simulationMode
-              ? '시뮬레이션 모드라 Bluetooth 권한은 자동 허용으로 처리해.'
-              : '스캔을 시작하면 Muse 연결을 위해 Bluetooth 권한을 요청해.'}
+            {simulationMode ? 'Muse-SIM으로 연결 흐름을 검증해.' : '실제 Muse 기기를 Bluetooth로 찾아 연결해.'}
           </Text>
         </View>
-      </Card>
 
-      <Card level={1} padding="lg">
-        <View style={styles.switchRow}>
+        <Card level={2} padding="xl" variant="hero">
+          <View style={styles.connectHero}>
+            <View style={styles.signalOrb}>
+              <Text style={styles.signalOrbText}>{simulationMode ? 'SIM' : 'BLE'}</Text>
+            </View>
+            <View style={styles.switchText}>
+              <Text style={styles.cardTitle}>{simulationMode ? 'Muse-SIM 준비됨' : 'Bluetooth 스캔 준비'}</Text>
+              <Text style={styles.description}>
+                {simulationMode
+                  ? '권한 없이 바로 Muse 연결 흐름을 확인할 수 있어.'
+                  : '스캔을 시작하면 권한 요청 후 Muse 후보를 먼저 보여줘.'}
+              </Text>
+            </View>
+          </View>
+        </Card>
+
+        <Card level={1} padding="lg" variant="glass">
+          <View style={styles.switchRow}>
+            <View style={styles.switchText}>
+              <Text style={styles.cardTitle}>Simulation EEG</Text>
+              <Text style={styles.metaText}>
+                {simulationMode
+                  ? 'Muse-SIM을 사용해. 실제 기기 없이 측정 흐름을 확인할 수 있어.'
+                  : '실제 Muse BLE를 사용해. EEG 디코딩은 FE-13b-2에서 연결해.'}
+              </Text>
+            </View>
+            <Switch value={simulationMode} onValueChange={setSimulationMode} />
+          </View>
+        </Card>
+
+        <View style={styles.sectionHeader}>
           <View style={styles.switchText}>
-            <Text style={styles.cardTitle}>Simulation EEG</Text>
+            <Text style={styles.sectionTitle}>검색 결과</Text>
             <Text style={styles.metaText}>
-              {simulationMode
-                ? 'Muse-SIM을 사용해. 실제 기기 없이 측정 흐름을 확인할 수 있어.'
-                : '실제 Muse BLE를 사용해. EEG 디코딩은 FE-13b-2에서 연결해.'}
+              {scanning ? '주변 BLE 신호를 확인하는 중' : `${visibleDevices.length}개 표시 중`}
             </Text>
           </View>
-          <Switch value={simulationMode} onValueChange={setSimulationMode} />
+          <Button label={scanning ? '검색 중' : '다시 검색'} loading={scanning} onPress={() => void scan()} size="sm" />
         </View>
-      </Card>
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>검색 결과</Text>
-        <Button label={scanning ? '검색 중' : '다시 검색'} loading={scanning} onPress={() => void scan()} size="sm" />
-      </View>
+        {devices.length === 0 && !scanning ? (
+          <Text style={styles.description}>주변에 Muse가 없어요. 켜져 있는지 확인하고 다시 시도해 주세요.</Text>
+        ) : null}
 
-      {devices.length === 0 && !scanning ? (
-        <Text style={styles.description}>주변에 Muse가 없어요. 켜져 있는지 확인하고 다시 시도해 주세요.</Text>
-      ) : null}
+        {!simulationMode && devices.length > 0 && !hasMuseCandidate ? (
+          <Card level={2} padding="lg" variant="glass">
+            <Text style={styles.description}>
+              주변에 Muse 후보가 안 보여서 주변 BLE 장치도 함께 표시 중이에요. 목록에서 Muse를 직접 선택할 수 있어요.
+            </Text>
+          </Card>
+        ) : null}
 
-      {!simulationMode && devices.length > 0 && !hasMuseCandidate ? (
-        <Card level={2} padding="lg">
-          <Text style={styles.description}>
-            주변에 Muse 후보가 안 보여서 주변 BLE 장치도 함께 표시 중이에요. 목록에서 Muse를 직접 선택할 수 있어요.
-          </Text>
-        </Card>
-      ) : null}
+        {!simulationMode && devices.length > 0 && hasMuseCandidate ? (
+          <Button
+            label={showDiagnosticDevices ? '진단용 BLE 전체 숨기기' : '진단용 BLE 전체 보기'}
+            onPress={() => setShowDiagnosticDevices((value) => !value)}
+            size="sm"
+            variant="secondary"
+          />
+        ) : null}
 
-      {!simulationMode && devices.length > 0 && hasMuseCandidate ? (
-        <Button
-          label={showDiagnosticDevices ? '진단용 BLE 전체 숨기기' : '진단용 BLE 전체 보기'}
-          onPress={() => setShowDiagnosticDevices((value) => !value)}
-          size="sm"
-          variant="secondary"
-        />
-      ) : null}
-
-      <View style={styles.stack}>
-        {visibleDevices.map((device) => (
-          <Card key={device.deviceId} level={2} padding="lg">
-            <View style={styles.deviceRow}>
-              <View style={styles.switchText}>
-                <View style={styles.deviceTitleRow}>
-                  <Text style={device.isMuseCandidate ? styles.deviceName : styles.secondaryDeviceName}>{device.name}</Text>
-                  {device.isMuseCandidate ? (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>Muse 후보</Text>
-                    </View>
-                  ) : null}
+        <View style={styles.stack}>
+          {visibleDevices.map((device) => (
+            <Card key={device.deviceId} level={device.isMuseCandidate ? 2 : 1} padding="lg" variant={device.isMuseCandidate ? 'hero' : 'glass'}>
+              <View style={styles.deviceRow}>
+                <View style={styles.switchText}>
+                  <View style={styles.deviceTitleRow}>
+                    <Text style={device.isMuseCandidate ? styles.deviceName : styles.secondaryDeviceName}>{device.name}</Text>
+                    {device.isMuseCandidate ? (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>Muse 후보</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={styles.metaText}>
+                    RSSI {device.rssi} · {device.isMuseCandidate ? 'Muse service/name match' : 'BLE device'}
+                  </Text>
                 </View>
-                <Text style={styles.metaText}>
-                  RSSI {device.rssi} · {device.isMuseCandidate ? 'Muse service/name match' : 'BLE device'}
-                </Text>
+                <Button
+                  label="연결"
+                  loading={connectingId === device.deviceId}
+                  onPress={() => void connect(device)}
+                  size="sm"
+                />
               </View>
-              <Button
-                label="연결"
-                loading={connectingId === device.deviceId}
-                onPress={() => void connect(device)}
-                size="sm"
-              />
+            </Card>
+          ))}
+        </View>
+
+        {connectedDeviceName ? (
+          <Card level={2} padding="xl" variant="hero">
+            <View style={styles.stack}>
+              <View style={styles.connectedHeader}>
+                <Text style={styles.cardTitle}>연결됨</Text>
+                <Text style={styles.metaText}>{connectedDeviceName}</Text>
+              </View>
+              <Text style={styles.description}>
+                설문 없이 EEG만 바로 측정하거나, 설문을 함께 입력해서 hybrid 결과로 진행할 수 있어.
+              </Text>
+              <View style={styles.choiceActions}>
+                <Button label="EEG만 측정하기" onPress={startEegOnlyMeasure} variant="primary" />
+                <Button label="설문도 함께 입력하기" onPress={addSurveyBeforeMeasure} variant="secondary" />
+              </View>
             </View>
           </Card>
-        ))}
-      </View>
-
-      {connectedDeviceName ? (
-        <Card level={1} padding="lg">
-          <View style={styles.stack}>
-            <View style={styles.connectedHeader}>
-              <Text style={styles.cardTitle}>연결됨</Text>
-              <Text style={styles.metaText}>{connectedDeviceName}</Text>
-            </View>
-            <Text style={styles.description}>
-              설문 없이 EEG만 바로 측정하거나, 설문을 함께 입력해서 hybrid 결과로 진행할 수 있어.
-            </Text>
-            <View style={styles.choiceActions}>
-              <Button label="EEG만 측정하기" onPress={startEegOnlyMeasure} variant="primary" />
-              <Button label="설문도 함께 입력하기" onPress={addSurveyBeforeMeasure} variant="secondary" />
-            </View>
-          </View>
-        </Card>
-      ) : null}
-    </ScrollView>
+        ) : null}
+      </ScrollView>
+    </ScreenBackdrop>
   );
 }
 
@@ -245,11 +258,13 @@ const styles = StyleSheet.create({
     fontWeight: type.bodyMd.weight,
     lineHeight: type.bodyMd.lineHeight,
   },
-  container: {
-    backgroundColor: color.bg.base,
-  },
   choiceActions: {
     gap: space.sm,
+  },
+  connectHero: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space.lg,
   },
   connectedHeader: {
     flexDirection: 'row',
@@ -327,6 +342,23 @@ const styles = StyleSheet.create({
   stack: {
     gap: space.md,
   },
+  signalOrb: {
+    alignItems: 'center',
+    backgroundColor: color.bg.glass,
+    borderColor: color.border.default,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: space['6xl'],
+    justifyContent: 'center',
+    width: space['6xl'],
+  },
+  signalOrbText: {
+    color: color.text.primary,
+    fontFamily: type.h3.family,
+    fontSize: type.h3.size,
+    fontWeight: type.h3.weight,
+    lineHeight: type.h3.lineHeight,
+  },
   switchRow: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -346,7 +378,7 @@ const styles = StyleSheet.create({
   badge: {
     backgroundColor: color.bg.elevated,
     borderColor: color.border.default,
-    borderRadius: space.lg,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: space.sm,
     paddingVertical: space.xs,
