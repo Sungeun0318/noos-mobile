@@ -1,9 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/EmptyState';
+import { PlanetHero } from '@/components/PlanetHero';
 import { Button, Card } from '@/components/ui';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { GuestPromptCard } from '@/components/GuestPromptCard';
@@ -43,7 +44,8 @@ export function TodayScreen() {
   const source = useStateStore((state) => state.source);
   const recommendedPlanet = useStateStore((state) => state.recommendedPlanet);
   const pendingSessions = useSessionStore((state) => state.pending);
-  const recentSession = useHistoryStore((state) => latestHistorySession(state.sessions));
+  const historySessions = useHistoryStore((state) => state.sessions);
+  const recentSession = useMemo(() => latestHistorySession(historySessions), [historySessions]);
 
   useEffect(() => {
     noosTelemetry.track('today_view');
@@ -87,10 +89,15 @@ export function TodayScreen() {
       >
         <Header displayName={mode === 'authed' ? user?.displayName : null} />
         <GuestPromptCard />
-        <StateCard measuredAt={measuredAt} onMeasure={goMeasure} source={source} stateLabel={stateLabel} />
-        <RecommendedPlanetCard planet={recommendedPlanet} />
+        <TodayStateHero
+          measuredAt={measuredAt}
+          onMeasure={goMeasure}
+          onStartSession={goStartSession}
+          planet={recommendedPlanet}
+          source={source}
+          stateLabel={stateLabel}
+        />
         <PendingSessionsBlock sessions={pendingSessions} />
-        <Button fullWidth label="지금 세션 시작" onPress={goStartSession} size="lg" />
         <RecentSessionMini session={recentSession} />
       </ScrollView>
     </ScreenBackdrop>
@@ -151,71 +158,81 @@ function sourceLabel(source: string | null) {
   return '설문 측정';
 }
 
-function StateCard({
+function TodayStateHero({
   stateLabel,
   measuredAt,
   source,
+  planet: measuredPlanet,
   onMeasure,
+  onStartSession,
 }: {
   stateLabel: string | null;
   measuredAt: string | null;
   source: string | null;
+  planet: keyof typeof PLANETS | null;
   onMeasure: () => void;
+  onStartSession: () => void;
 }) {
+  const planetId = measuredPlanet ?? 'neptune';
+  const planet = PLANETS[planetId];
+
   if (!stateLabel) {
     return (
-      <Card level={2} padding="xl" variant="glass">
-        <View style={styles.cardStack}>
-          <Text style={styles.cardTitle}>아직 측정 기록이 없어요</Text>
-          <Text style={styles.bodyText}>지금 상태를 입력하면 더 정확한 행성 추천을 받을 수 있어요.</Text>
-          <Button label="내 상태 측정하기" onPress={onMeasure} variant="secondary" />
+      <Card level={2} padding="xl" planetTint={planetId} variant="hero">
+        <View style={styles.emptyHero}>
+          <PlanetImage planet={planetId} round size={heroOrbSize} style={styles.heroPlanetImage} />
+          <View style={styles.cardStack}>
+            <Text style={styles.label}>추천 준비</Text>
+            <Text style={styles.stateLabel}>내 상태 측정하기</Text>
+            <Text style={styles.bodyText}>측정하면 오늘 컨디션에 맞는 행성과 세션을 더 정확히 추천해요.</Text>
+          </View>
+          <View style={styles.heroActions}>
+            <Button fullWidth label="내 상태 측정하기" onPress={onMeasure} size="lg" />
+            <Button fullWidth label="지금 세션 시작" onPress={onStartSession} variant="secondary" />
+          </View>
         </View>
       </Card>
     );
   }
 
   return (
-    <Card level={2} padding="xl" variant="hero">
-      <View style={styles.cardStack}>
+    <View style={styles.heroStack}>
+      <PlanetHero planet={planetId} imageSize={heroPlanetSize}>
         <Text style={styles.label}>마지막 측정</Text>
         <Text style={styles.stateLabel}>{stateLabel}</Text>
         <Text style={styles.bodyText}>
           {formatMeasuredAt(measuredAt) ?? '방금'} · {sourceLabel(source)}
         </Text>
-        <Button label="다시 측정하기" onPress={onMeasure} variant="secondary" />
-      </View>
-    </Card>
-  );
-}
-
-function RecommendedPlanetCard({ planet: measuredPlanet }: { planet: keyof typeof PLANETS | null }) {
-  const planetId = measuredPlanet ?? 'neptune';
-  const planet = PLANETS[planetId];
-  const subtitle = measuredPlanet ? planet.description : '측정 후 더 정확해져요';
-
-  return (
-    <Card level={1} padding="xl" planetTint={planet.id} variant="glass">
-      <View style={styles.recommendRow}>
-        <View style={styles.cardStack}>
-          <Text style={styles.label}>추천 행성</Text>
-          <Text style={styles.cardTitle}>{planet.title}</Text>
-          <Text style={styles.bodyText}>{subtitle}</Text>
+      </PlanetHero>
+      <Card level={1} padding="lg" planetTint={planet.id} variant="glass">
+        <View style={styles.heroSummaryRow}>
+          <View style={styles.cardStack}>
+            <Text style={styles.label}>추천 행성</Text>
+            <Text style={styles.cardTitle}>{planet.title}</Text>
+            <Text style={styles.bodyText}>{planet.description}</Text>
+          </View>
+          <Button label="다시 측정" onPress={onMeasure} size="sm" variant="secondary" />
         </View>
-        <PlanetImage planet={planetId} round size={orbSize} style={styles.planetImage} />
-      </View>
-    </Card>
+      </Card>
+      <Button fullWidth label="지금 세션 시작" onPress={onStartSession} size="lg" />
+    </View>
   );
 }
 
 function PendingSessionsBlock({ sessions }: { sessions: PendingSession[] }) {
+  const sortedSessions = useMemo(
+    () => [...sessions].sort((a, b) => b.enqueuedAt - a.enqueuedAt),
+    [sessions],
+  );
+
   if (sessions.length === 0) {
     return null;
   }
 
   return (
-    <View style={styles.section}>
+    <View style={styles.compactSection}>
       <Text style={styles.sectionTitle}>생성 중인 세션</Text>
-      {[...sessions].sort((a, b) => b.enqueuedAt - a.enqueuedAt).map((session) => (
+      {sortedSessions.map((session) => (
         <PendingSessionCard key={session.sessionId} session={session} />
       ))}
     </View>
@@ -252,7 +269,7 @@ function PendingSessionCard({ session }: { session: PendingSession }) {
   }
 
   return (
-    <Card level={2} padding="lg" planetTint={session.planet} variant="glass">
+    <Card level={2} padding="md" planetTint={session.planet} variant="compact">
       <View style={styles.pendingContent}>
         <View style={styles.pendingHeader}>
           <Text style={styles.pendingTitle}>
@@ -366,7 +383,7 @@ function RecentSessionMini({ session }: { session: HistorySession | null }) {
       }}
       style={({ pressed }) => pressed && styles.pressed}
     >
-      <Card level={1} padding="lg" planetTint={session.planet} variant="glass">
+      <Card level={1} padding="md" planetTint={session.planet} variant="compact">
         <View style={styles.recentRow}>
           <View style={styles.recentCopy}>
             <PlanetImage planet={session.planet} round size={space['4xl']} style={styles.planetImage} />
@@ -391,7 +408,8 @@ function formatRecentCompletedAt(value: string) {
   });
 }
 
-const orbSize = space['5xl'];
+const heroOrbSize = space['6xl'];
+const heroPlanetSize = space['6xl'] + space['4xl'];
 
 const styles = StyleSheet.create({
   bodyText: {
@@ -419,6 +437,9 @@ const styles = StyleSheet.create({
     gap: space.lg,
     paddingHorizontal: space.xl,
   },
+  compactSection: {
+    gap: space.sm,
+  },
   eyebrow: {
     color: color.text.tertiary,
     fontFamily: type.caption.family,
@@ -444,6 +465,27 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     height: space.md,
     width: space.md,
+  },
+  emptyHero: {
+    alignItems: 'center',
+    gap: space.lg,
+  },
+  heroActions: {
+    alignSelf: 'stretch',
+    gap: space.sm,
+  },
+  heroPlanetImage: {
+    borderColor: color.border.strong,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  heroStack: {
+    gap: space.md,
+  },
+  heroSummaryRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space.md,
+    justifyContent: 'space-between',
   },
   label: {
     color: color.text.tertiary,
@@ -512,11 +554,6 @@ const styles = StyleSheet.create({
     fontWeight: type.bodyMd.weight,
     lineHeight: type.bodyMd.lineHeight,
   },
-  recommendRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space.lg,
-  },
   readyButton: {
     alignItems: 'center',
     borderRadius: radius.md,
@@ -529,9 +566,6 @@ const styles = StyleSheet.create({
     fontSize: type.bodyMd.size,
     fontWeight: type.bodyMd.weight,
     lineHeight: type.bodyMd.lineHeight,
-  },
-  section: {
-    gap: space.sm,
   },
   sectionTitle: {
     color: color.text.secondary,
