@@ -42,7 +42,7 @@ export function Card({
     >
       {isGlass ? (
         <>
-          <BlurView intensity={34} style={styles.absoluteFill} tint="dark" />
+          <BlurView intensity={34} pointerEvents="none" style={styles.glassBlur} tint="dark" />
           <View pointerEvents="none" style={styles.glassOverlay} />
         </>
       ) : null}
@@ -51,7 +51,7 @@ export function Card({
           style={[styles.tint, { backgroundColor: PLANET_COLORS[planetTint].secondary }]}
         />
       ) : null}
-      {children}
+      {isGlass ? <View style={styles.glassContent}>{children}</View> : children}
     </View>
   );
 
@@ -67,15 +67,19 @@ export function Card({
 }
 
 const styles = StyleSheet.create({
-  absoluteFill: {
+  card: {
+    overflow: 'hidden',
+  },
+  glassBlur: {
     bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
+    zIndex: 0,
   },
-  card: {
-    overflow: 'hidden',
+  glassContent: {
+    zIndex: 2,
   },
   glassOverlay: {
     backgroundColor: color.bg.glass,
@@ -84,6 +88,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     top: 0,
+    zIndex: 1,
   },
   pressed: {
     opacity: 0.85,
@@ -94,6 +99,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     width: 4,
+    zIndex: 2,
   },
 });
 
