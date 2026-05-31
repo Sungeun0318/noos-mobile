@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle, Line, Path } from 'react-native-svg';
 
 import { noosApi } from '@/api/noosApi';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -54,6 +55,51 @@ const tabLabels: Array<keyof MainTabsParamList> = [
   'Settings',
 ];
 
+function TabIcon({
+  color: iconColor,
+  focused,
+  route,
+}: {
+  color: string;
+  focused: boolean;
+  route: keyof MainTabsParamList;
+}) {
+  const strokeWidth = focused ? 2.4 : 2;
+
+  return (
+    <Svg height={24} viewBox="0 0 24 24" width={24}>
+      {route === 'Today' ? (
+        <>
+          <Circle cx={12} cy={12} fill={focused ? iconColor : 'none'} r={3.2} stroke={iconColor} strokeWidth={strokeWidth} />
+          <Path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" stroke={iconColor} strokeLinecap="round" strokeWidth={strokeWidth} />
+        </>
+      ) : null}
+      {route === 'Measure' ? (
+        <Path d="M3 13h3l2-5 4 10 3-8 2 3h4" fill="none" stroke={iconColor} strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} />
+      ) : null}
+      {route === 'Journey' ? (
+        <>
+          <Circle cx={12} cy={12} fill={focused ? iconColor : 'none'} r={4.2} stroke={iconColor} strokeWidth={strokeWidth} />
+          <Path d="M4 13.5c3.4-5.8 12.6-5.8 16 0M4.8 16.2c3.8 3.1 10.6 3.1 14.4 0" fill="none" stroke={iconColor} strokeLinecap="round" strokeWidth={strokeWidth} />
+        </>
+      ) : null}
+      {route === 'History' ? (
+        <>
+          <Circle cx={12} cy={12} fill="none" r={8} stroke={iconColor} strokeWidth={strokeWidth} />
+          <Path d="M12 7v5l3 2" fill="none" stroke={iconColor} strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} />
+        </>
+      ) : null}
+      {route === 'Settings' ? (
+        <>
+          <Circle cx={12} cy={12} fill="none" r={3.2} stroke={iconColor} strokeWidth={strokeWidth} />
+          <Path d="M12 3v3M12 18v3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M19.8 7.5 17.2 9M6.8 15l-2.6 1.5" fill="none" stroke={iconColor} strokeLinecap="round" strokeWidth={strokeWidth} />
+          <Line stroke={iconColor} strokeLinecap="round" strokeWidth={strokeWidth} x1={12} x2={12} y1={3} y2={6} />
+        </>
+      ) : null}
+    </Svg>
+  );
+}
+
 function MainTabs() {
   const insets = useSafeAreaInsets();
 
@@ -61,8 +107,11 @@ function MainTabs() {
     <View style={styles.tabsContainer}>
       <OfflineBanner />
       <Tabs.Navigator
-        screenOptions={{
+        screenOptions={({ route }) => ({
           headerShown: false,
+          tabBarIcon: ({ color: iconColor, focused }) => (
+            <TabIcon color={iconColor} focused={focused} route={route.name} />
+          ),
           tabBarActiveTintColor: color.text.primary,
           tabBarInactiveTintColor: color.text.tertiary,
           tabBarLabelStyle: styles.tabLabel,
@@ -73,7 +122,7 @@ function MainTabs() {
               paddingBottom: insets.bottom,
             },
           ],
-        }}
+        })}
       >
         {tabLabels.map((label) => {
           if (label === 'Today') {
