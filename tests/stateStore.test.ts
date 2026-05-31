@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { MeasureResponse } from '@/api/types';
+import type { MeasureEeg, MeasureResponse } from '@/api/types';
 import {
   normalizePlanetId,
   normalizeSurveyDraft,
@@ -27,6 +27,23 @@ const response: MeasureResponse = {
   source: 'survey',
   weight: { survey: 1, eeg: 0 },
   measuredAt: '2026-05-20T01:00:00Z',
+};
+
+const eeg: MeasureEeg = {
+  deviceType: 'Muse S Athena',
+  deviceId: 'muse_test',
+  measuredAt: '2026-05-20T01:00:00Z',
+  measurementDurationSec: 60,
+  sampleRateHz: 256,
+  sampleCount: 15360,
+  signalQuality: 0.84,
+  bands: {
+    alpha: 28.2,
+    beta: 31.5,
+    delta: 12.3,
+    gamma: 9.6,
+    theta: 18.4,
+  },
 };
 
 describe('stateStore', () => {
@@ -84,6 +101,7 @@ describe('stateStore', () => {
       alternates: ['saturn', 'earth', 'neptune'],
       confidence: 0.78,
       source: 'survey',
+      eegBands: null,
       intentText: 'code',
     });
 
@@ -96,7 +114,18 @@ describe('stateStore', () => {
       measurementId: null,
       recommendedPlanet: null,
       alternates: [],
+      eegBands: null,
     });
+  });
+
+  it('stores EEG bands for EEG-backed measurements and clears them for survey-only measurements', () => {
+    useStateStore.getState().setFromMeasure({ ...response, source: 'hybrid' }, eeg);
+
+    expect(useStateStore.getState().eegBands).toEqual(eeg.bands);
+
+    useStateStore.getState().setFromMeasure(response);
+
+    expect(useStateStore.getState().eegBands).toBeNull();
   });
 
   it('clears stale survey draft for EEG-only Muse measurement', () => {

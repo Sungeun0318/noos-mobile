@@ -59,7 +59,7 @@ export function MuseMeasureScreen() {
 
         setPhase('finalizing');
         const response = await measureMock(surveyDraft, eeg);
-        setFromMeasure(response);
+        setFromMeasure(response, eeg);
         setMuseStatus('connected');
         noosTelemetry.track('muse_measure_complete', {
           sampleCount: eeg.sampleCount,

@@ -58,13 +58,15 @@ export interface MeasureEeg {
   sampleRateHz: number;
   sampleCount: number;
   signalQuality: number;
-  bands: {
-    delta: number;
-    theta: number;
-    alpha: number;
-    beta: number;
-    gamma: number;
-  };
+  bands: EegBands;
+}
+
+export interface EegBands {
+  delta: number;
+  theta: number;
+  alpha: number;
+  beta: number;
+  gamma: number;
 }
 
 export interface CurrentState {

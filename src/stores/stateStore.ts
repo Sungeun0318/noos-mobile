@@ -2,7 +2,7 @@ import { createMMKV } from 'react-native-mmkv';
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 
-import type { CurrentState, MeasureResponse, MeasureSource, MeasureSurvey } from '@/api/types';
+import type { CurrentState, EegBands, MeasureEeg, MeasureResponse, MeasureSource, MeasureSurvey } from '@/api/types';
 import { PLANETS, type PlanetId } from '@/theme';
 
 export interface SurveyDraft {
@@ -22,10 +22,11 @@ export interface StateStoreShape {
   alternates: PlanetId[];
   confidence: number | null;
   source: MeasureSource | null;
+  eegBands: EegBands | null;
   measuredAt: string | null;
   intentText: string | null;
   setSurveyDraft(survey: MeasureSurvey | null): void;
-  setFromMeasure(response: MeasureResponse): void;
+  setFromMeasure(response: MeasureResponse, eeg?: MeasureEeg | null): void;
   clear(): void;
 }
 
@@ -75,6 +76,7 @@ const initialState = {
   alternates: [],
   confidence: null,
   source: null,
+  eegBands: null,
   measuredAt: null,
   intentText: null,
 };
@@ -84,7 +86,7 @@ export const useStateStore = create<StateStoreShape>()(
     (set, get) => ({
       ...initialState,
       setSurveyDraft: (survey) => set({ surveyDraft: survey ? normalizeSurveyDraft(survey) : null }),
-      setFromMeasure: (response) => {
+      setFromMeasure: (response, eeg) => {
         const surveyDraft = get().surveyDraft;
 
         set({
@@ -95,6 +97,7 @@ export const useStateStore = create<StateStoreShape>()(
           alternates: response.alternates.map(normalizePlanetId).slice(0, 3),
           confidence: response.confidence,
           source: response.source,
+          eegBands: response.source === 'eeg' || response.source === 'hybrid' ? eeg?.bands ?? null : null,
           measuredAt: response.measuredAt,
           intentText: surveyDraft?.intentText ?? null,
         });
@@ -112,6 +115,7 @@ export const useStateStore = create<StateStoreShape>()(
         alternates: state.alternates,
         confidence: state.confidence,
         source: state.source,
+        eegBands: state.eegBands,
         measuredAt: state.measuredAt,
         intentText: state.intentText,
       }),
