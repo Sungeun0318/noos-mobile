@@ -49,16 +49,17 @@ const styles = StyleSheet.create({
     lineHeight: type.h2.lineHeight,
   },
   content: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: space.md,
     justifyContent: 'space-between',
   },
   disabled: {
-    opacity: 0.45,
+    opacity: 0.62,
   },
   disabledText: {
-    color: color.text.disabled,
+    color: color.text.tertiary,
   },
   hint: {
     color: color.text.tertiary,
@@ -83,10 +84,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: space.sm,
     justifyContent: 'flex-end',
+    minWidth: 0,
   },
   textBlock: {
     flex: 1,
     gap: space.xs,
+    minWidth: 0,
   },
   value: {
     color: color.text.tertiary,

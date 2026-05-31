@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { Button, Card, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { SettingsStackParamList } from '@/navigation/SettingsStack';
@@ -41,48 +42,50 @@ export function AccountScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-      {toast ? <Toast message={toast} variant="info" /> : null}
+    <ScreenBackdrop>
+      <ScrollView contentContainerStyle={styles.content} style={styles.container}>
+        {toast ? <Toast message={toast} variant="info" /> : null}
 
-      {mode === 'authed' && user ? (
-        <View style={styles.stack}>
-          <Card level={1} padding="xl">
-            <View style={styles.stack}>
-              <Text style={styles.eyebrow}>NOOS 계정</Text>
-              <Text style={styles.title}>{user.displayName}</Text>
-              <Text style={styles.description}>{user.loginId}</Text>
-            </View>
-          </Card>
-          <Button
-            fullWidth
-            label="로그아웃"
-            loading={busy}
-            onPress={() => void submitLogout()}
-            variant="destructive"
-          />
-        </View>
-      ) : (
-        <View style={styles.stack}>
-          <Card level={1} padding="xl">
-            <View style={styles.stack}>
-              <Text style={styles.title}>계정을 연결하세요</Text>
-              <Text style={styles.description}>
-                기록을 안전하게 보관하고 다른 기기에서도 이어가려면 가입하세요.
-              </Text>
-              <Text style={styles.smallText}>NOOS 웹과 같은 계정을 사용합니다.</Text>
-            </View>
-          </Card>
-          <Button fullWidth label="회원가입" onPress={() => openAuth('Auth/Signup')} size="lg" />
-          <Button fullWidth label="로그인" onPress={() => openAuth('Auth/Login')} variant="secondary" />
-        </View>
-      )}
-    </ScrollView>
+        {mode === 'authed' && user ? (
+          <View style={styles.stack}>
+            <Card level={1} padding="xl" variant="glass">
+              <View style={styles.stack}>
+                <Text style={styles.eyebrow}>NOOS 계정</Text>
+                <Text style={styles.title}>{user.displayName}</Text>
+                <Text style={styles.description}>{user.loginId}</Text>
+              </View>
+            </Card>
+            <Button
+              fullWidth
+              label="로그아웃"
+              loading={busy}
+              onPress={() => void submitLogout()}
+              variant="destructive"
+            />
+          </View>
+        ) : (
+          <View style={styles.stack}>
+            <Card level={1} padding="xl" variant="glass">
+              <View style={styles.stack}>
+                <Text style={styles.title}>계정을 연결하세요</Text>
+                <Text style={styles.description}>
+                  기록을 안전하게 보관하고 다른 기기에서도 이어가려면 가입하세요.
+                </Text>
+                <Text style={styles.smallText}>NOOS 웹과 같은 계정을 사용합니다.</Text>
+              </View>
+            </Card>
+            <Button fullWidth label="회원가입" onPress={() => openAuth('Auth/Signup')} size="lg" />
+            <Button fullWidth label="로그인" onPress={() => openAuth('Auth/Login')} variant="secondary" />
+          </View>
+        )}
+      </ScrollView>
+    </ScreenBackdrop>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: color.bg.base,
+    backgroundColor: 'transparent',
   },
   content: {
     gap: space.xl,

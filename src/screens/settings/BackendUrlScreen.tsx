@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { noosApi } from '@/api/noosApi';
+import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { Button, Card, TextInput, Toast } from '@/components/ui';
 import type { SettingsStackParamList } from '@/navigation/SettingsStack';
 import { noosTelemetry } from '@/lib/telemetry';
@@ -62,67 +63,69 @@ export function BackendUrlScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-      {localhostWarning ? (
-        <Toast message="실기기에서는 localhost 가 폰 자신을 가리켜요" variant="warning" />
-      ) : null}
+    <ScreenBackdrop>
+      <ScrollView contentContainerStyle={styles.content} style={styles.container}>
+        {localhostWarning ? (
+          <Toast message="실기기에서는 localhost 가 폰 자신을 가리켜요" variant="warning" />
+        ) : null}
 
-      <TextInput
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
-        label="Backend URL"
-        onChangeText={(value) => {
-          setDraftUrl(value);
-          setTestResult('idle');
-          setTestDetail('');
-        }}
-        placeholder="http://192.168.1.42:8080"
-        value={draftUrl}
-      />
-
-      <View style={styles.actions}>
-        <Button
-          disabled={!normalizedDraftUrl}
-          fullWidth
-          label="연결 테스트"
-          loading={testing}
-          onPress={testConnection}
-          variant="secondary"
+        <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          label="Backend URL"
+          onChangeText={(value) => {
+            setDraftUrl(value);
+            setTestResult('idle');
+            setTestDetail('');
+          }}
+          placeholder="http://192.168.1.42:8080"
+          value={draftUrl}
         />
-        <Button
-          disabled={!normalizedDraftUrl}
-          fullWidth
-          label={testResult === 'ok' ? '저장' : '테스트 없이 저장'}
-          onPress={save}
-        />
-      </View>
 
-      {testResult !== 'idle' ? (
-        <Card level={testResult === 'ok' ? 2 : 1}>
-          <Text style={styles.resultTitle}>{testResult === 'ok' ? '연결됨' : '연결 실패'}</Text>
-          <Text style={styles.resultDetail}>{testDetail}</Text>
-        </Card>
-      ) : null}
+        <View style={styles.actions}>
+          <Button
+            disabled={!normalizedDraftUrl}
+            fullWidth
+            label="연결 테스트"
+            loading={testing}
+            onPress={testConnection}
+            variant="secondary"
+          />
+          <Button
+            disabled={!normalizedDraftUrl}
+            fullWidth
+            label={testResult === 'ok' ? '저장' : '테스트 없이 저장'}
+            onPress={save}
+          />
+        </View>
 
-      <View style={styles.presets}>
-        <Text style={styles.presetsTitle}>Preset</Text>
-        {backendUrlPresets.map((url) => (
-          <Pressable
-            accessibilityRole="button"
-            key={url}
-            onPress={() => {
-              setDraftUrl(url);
-              setTestResult('idle');
-              setTestDetail('');
-            }}
-            style={({ pressed }) => [styles.preset, pressed && styles.pressed]}
-          >
-            <Text style={styles.presetText}>{url}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </ScrollView>
+        {testResult !== 'idle' ? (
+          <Card level={testResult === 'ok' ? 2 : 1} variant="glass">
+            <Text style={styles.resultTitle}>{testResult === 'ok' ? '연결됨' : '연결 실패'}</Text>
+            <Text style={styles.resultDetail}>{testDetail}</Text>
+          </Card>
+        ) : null}
+
+        <View style={styles.presets}>
+          <Text style={styles.presetsTitle}>Preset</Text>
+          {backendUrlPresets.map((url) => (
+            <Pressable
+              accessibilityRole="button"
+              key={url}
+              onPress={() => {
+                setDraftUrl(url);
+                setTestResult('idle');
+                setTestDetail('');
+              }}
+              style={({ pressed }) => [styles.preset, pressed && styles.pressed]}
+            >
+              <Text style={styles.presetText}>{url}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+    </ScreenBackdrop>
   );
 }
 
@@ -131,7 +134,7 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   container: {
-    backgroundColor: color.bg.base,
+    backgroundColor: 'transparent',
   },
   content: {
     gap: space.xl,

@@ -1,12 +1,13 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EmptyState } from '@/components/EmptyState';
+import { PlanetHero } from '@/components/PlanetHero';
 import { StateAxisChart } from '@/components/StateAxisChart';
-import { PlanetImage } from '@/components/PlanetImage';
+import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { Button, Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { HistoryStackParamList } from '@/navigation/HistoryStack';
@@ -15,7 +16,7 @@ import { activeFromHistorySession } from '@/screens/history/historyTransforms';
 import { useHistoryStore, type HistorySession } from '@/stores/historyStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { color, planetGradient, PLANETS, radius, space, type } from '@/theme';
+import { color, PLANETS, radius, space, type } from '@/theme';
 
 type HistoryDetailProps = NativeStackScreenProps<HistoryStackParamList, 'History/Detail'>;
 
@@ -56,62 +57,77 @@ export function HistoryDetailScreen({ navigation, route }: HistoryDetailProps) {
 
   if (!simulationMode && detailQuery.isLoading) {
     return (
-      <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
-        <Text style={styles.title}>세션을 불러오는 중</Text>
-        <Text style={styles.bodyText}>상세 기록을 확인하고 있습니다.</Text>
-      </View>
+      <ScreenBackdrop planet="saturn">
+        <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
+          <EmptyState
+            body="상세 기록을 확인하고 있습니다."
+            planet="saturn"
+            title="세션을 불러오는 중"
+          />
+        </View>
+      </ScreenBackdrop>
     );
   }
 
   if (!session) {
     return (
-      <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
-        <Text style={styles.title}>세션을 찾을 수 없어요</Text>
-        <Text style={styles.bodyText}>기록이 삭제됐거나 아직 동기화되지 않았습니다.</Text>
-        <Button label="뒤로" onPress={navigation.goBack} />
-      </View>
+      <ScreenBackdrop>
+        <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
+          <EmptyState
+            action={<Button label="뒤로" onPress={navigation.goBack} />}
+            body="기록이 삭제됐거나 아직 동기화되지 않았습니다."
+            title="세션을 찾을 수 없어요"
+          />
+        </View>
+      </ScreenBackdrop>
     );
   }
 
   const planet = PLANETS[session.planet];
-  const gradient = planetGradient(session.planet);
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingBottom: insets.bottom + space['6xl'],
-          paddingTop: insets.top + space.xl,
-        },
-      ]}
-      style={styles.container}
-    >
-      <LinearGradient colors={gradient.colors} locations={gradient.locations} style={styles.hero}>
-        <PlanetImage planet={session.planet} round size={orbSize} style={styles.planetImage} />
-        <Text style={styles.eyebrow}>{planet.title}</Text>
-        <Text style={styles.title}>{session.summary?.title ?? planet.trackName}</Text>
-        {session.summary?.description ? (
-          <Text style={styles.bodyText}>{session.summary.description}</Text>
-        ) : null}
-      </LinearGradient>
+    <ScreenBackdrop planet={session.planet}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: insets.bottom + space['6xl'],
+            paddingTop: insets.top + space.xl,
+          },
+        ]}
+        style={styles.container}
+      >
+        <PlanetHero imageSize={space['5xl']} planet={session.planet}>
+          <Text style={styles.eyebrow}>{planet.title}</Text>
+          <Text style={styles.title}>{session.summary?.title ?? planet.trackName}</Text>
+          {session.summary?.description ? (
+            <Text style={styles.bodyText}>{session.summary.description}</Text>
+          ) : null}
+        </PlanetHero>
 
-      <SessionMeta session={session} />
-      {session.currentState ? <StateAxisChart values={session.currentState} /> : null}
-      <FeedbackBlock session={session} />
-      <Button
-        fullWidth
-        label="다시 재생"
-        onPress={() => replaySession(session)}
-        size="lg"
-      />
-    </ScrollView>
+        <SessionMeta session={session} />
+        <AudioMeta session={session} />
+        {session.currentState ? (
+          <View style={styles.sectionStack}>
+            <Text style={styles.sectionTitle}>상태 축</Text>
+            <StateAxisChart values={session.currentState} />
+          </View>
+        ) : null}
+        <FeedbackBlock session={session} />
+        <Button
+          fullWidth
+          label="다시 재생"
+          onPress={() => replaySession(session)}
+          size="lg"
+        />
+      </ScrollView>
+    </ScreenBackdrop>
   );
 }
 
 function SessionMeta({ session }: { session: HistorySession }) {
   return (
-    <Card level={1} padding="lg">
+    <Card level={1} padding="lg" variant="glass">
       <View style={styles.metaStack}>
         <Text style={styles.cardTitle}>세션 정보</Text>
         <Text style={styles.bodyText}>
@@ -124,9 +140,25 @@ function SessionMeta({ session }: { session: HistorySession }) {
   );
 }
 
+function AudioMeta({ session }: { session: HistorySession }) {
+  return (
+    <Card level={1} padding="lg" variant="compact">
+      <View style={styles.metaStack}>
+        <Text style={styles.cardTitle}>오디오</Text>
+        <Text style={styles.bodyText}>
+          {session.audio ? `audioId ${session.audio.audioId}` : '오디오 정보 없음'}
+        </Text>
+        <Text style={styles.metaText}>
+          재생 길이 {Math.round((session.audio?.durationSec ?? session.durationSec) / 60)}분
+        </Text>
+      </View>
+    </Card>
+  );
+}
+
 function FeedbackBlock({ session }: { session: HistorySession }) {
   return (
-    <Card level={2} padding="lg">
+    <Card level={2} padding="lg" variant="glass">
       <View style={styles.metaStack}>
         <Text style={styles.cardTitle}>피드백</Text>
         {session.feedbackSummary ? (
@@ -161,8 +193,6 @@ function formatDateTime(value: string) {
   });
 }
 
-const orbSize = space['5xl'];
-
 const styles = StyleSheet.create({
   bodyText: {
     color: color.text.secondary,
@@ -179,14 +209,13 @@ const styles = StyleSheet.create({
     lineHeight: type.h3.lineHeight,
   },
   container: {
-    backgroundColor: color.bg.base,
+    backgroundColor: 'transparent',
   },
   content: {
     gap: space.lg,
     paddingHorizontal: space.xl,
   },
   empty: {
-    backgroundColor: color.bg.base,
     flex: 1,
     gap: space.lg,
     justifyContent: 'center',
@@ -220,14 +249,6 @@ const styles = StyleSheet.create({
     fontWeight: type.caption.weight,
     lineHeight: type.caption.lineHeight,
   },
-  hero: {
-    borderColor: color.border.subtle,
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: space.sm,
-    overflow: 'hidden',
-    padding: space.xl,
-  },
   metaStack: {
     gap: space.sm,
   },
@@ -238,9 +259,16 @@ const styles = StyleSheet.create({
     fontWeight: type.body.weight,
     lineHeight: type.body.lineHeight,
   },
-  planetImage: {
-    borderColor: color.border.default,
-    borderWidth: StyleSheet.hairlineWidth,
+  sectionStack: {
+    gap: space.sm,
+  },
+  sectionTitle: {
+    color: color.text.secondary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    letterSpacing: 0,
+    lineHeight: type.caption.lineHeight,
   },
   title: {
     color: color.text.primary,
