@@ -1,8 +1,21 @@
 import { PermissionsAndroid, Platform } from 'react-native';
-import { BleManager, State, type Device } from 'react-native-ble-plx';
+import { BleManager, State, type Characteristic, type Device, type Subscription } from 'react-native-ble-plx';
 
 import type { MeasureEeg } from '@/api/types';
-import { museSimulator, type MuseMeasureTick, type SimulatedMuseDevice } from '@/screens/measure/museSimulator';
+import { logger } from '@/lib/logger';
+import { calculateBandPowers } from '@/screens/measure/eegBands';
+import {
+  athenaDataCharacteristicUuids,
+  base64ToBytes,
+  controlCharacteristicUuid,
+  decodeClassicEegPacket,
+  decodeControlText,
+  eegCharacteristicUuids,
+  encodeMuseCommand,
+  museServiceUuid,
+  parseAthenaDataPacket,
+} from '@/screens/measure/museProtocol';
+import type { MuseMeasureOptions, MuseMeasureTick, SimulatedMuseDevice } from '@/screens/measure/museSimulator';
 
 type BlePermissionStatus = 'granted' | 'denied';
 
@@ -28,7 +41,9 @@ export class MuseBleError extends Error {
 let manager: BleManager | null = null;
 let connectedDevice: Device | null = null;
 
-const museServiceUuid = '0000fe8d-0000-1000-8000-00805f9b34fb';
+const log = logger.create('museBle');
+const sampleRateHz = 256;
+const streamPreset = 'p1041';
 
 function getManager() {
   manager ??= new BleManager();
@@ -69,6 +84,134 @@ function sortBleDevices(devices: SimulatedMuseDevice[]) {
     }
 
     return b.rssi - a.rssi;
+  });
+}
+
+function findCharacteristic(characteristics: Characteristic[], uuid: string) {
+  return characteristics.find((characteristic) => characteristic.uuid.toLowerCase() === uuid.toLowerCase()) ?? null;
+}
+
+function selectDataCharacteristics(characteristics: Characteristic[]) {
+  const classic = eegCharacteristicUuids
+    .map((uuid, channelIndex) => {
+      const characteristic = findCharacteristic(characteristics, uuid);
+      return characteristic ? { characteristic, channelIndex, decoder: 'classic' as const, label: `classic-${channelIndex}` } : null;
+    })
+    .filter((value): value is NonNullable<typeof value> => value !== null);
+
+  if (classic.length === eegCharacteristicUuids.length) {
+    return classic;
+  }
+
+  const athena = athenaDataCharacteristicUuids
+    .map((uuid, channelIndex) => {
+      const characteristic = findCharacteristic(characteristics, uuid);
+      return characteristic ? { characteristic, channelIndex, decoder: 'athena' as const, label: `athena-${channelIndex + 1}` } : null;
+    })
+    .filter((value): value is NonNullable<typeof value> => value !== null);
+
+  if (athena.length > 0) {
+    log.warn('classic Muse EEG characteristics missing; using Athena data characteristics', {
+      available: characteristics.map((characteristic) => characteristic.uuid),
+      selected: athena.map(({ characteristic }) => characteristic.uuid),
+    });
+  }
+
+  return athena;
+}
+
+function sleep(ms: number, signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new MuseBleError('CONNECT_FAILED', 'measure aborted'));
+      return;
+    }
+
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new MuseBleError('CONNECT_FAILED', 'measure aborted'));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+async function sendCommand(control: Characteristic, command: string) {
+  log.info('sending Muse command', { command });
+  const encoded = encodeMuseCommand(command);
+
+  await control.writeWithoutResponse(encoded).catch(() => control.writeWithResponse(encoded));
+}
+
+async function sendCommandStep(control: Characteristic, command: string, delayMs: number, optional: boolean, signal?: AbortSignal) {
+  try {
+    await sendCommand(control, command);
+  } catch (error) {
+    if (!optional) {
+      throw error;
+    }
+
+    log.warn('optional Muse command failed', { command, message: error instanceof Error ? error.message : String(error) });
+  }
+
+  if (delayMs > 0) {
+    await sleep(delayMs, signal);
+  }
+}
+
+async function sendStartSequence(control: Characteristic, signal?: AbortSignal) {
+  await sendCommandStep(control, 'v6', 200, true, signal);
+  await sendCommandStep(control, 's', 200, true, signal);
+  await sendCommandStep(control, 'h', 200, true, signal);
+  await sendCommandStep(control, streamPreset, 200, false, signal);
+  await sendCommandStep(control, 's', 200, true, signal);
+  await sendCommandStep(control, 'dc001', 50, false, signal);
+  await sendCommandStep(control, 'dc001', 100, false, signal);
+  await sendCommandStep(control, 'L1', 300, true, signal);
+  await sendCommandStep(control, 's', 200, true, signal);
+  log.info('Muse stream command sequence completed', { streamPreset });
+}
+
+function appendAthenaRows(channels: number[][], rows: number[][]) {
+  rows.forEach((row) => {
+    for (let channelIndex = 0; channelIndex < Math.min(4, row.length); channelIndex += 1) {
+      const sample = row[channelIndex];
+
+      if (Number.isFinite(sample)) {
+        channels[channelIndex].push(sample);
+      }
+    }
+  });
+}
+
+function signalQualityFromChannels(channels: number[][], elapsedSec: number) {
+  const expected = Math.max(1, elapsedSec * sampleRateHz);
+  const activeChannels = channels.filter((channel) => channel.length > 0).length;
+  const sampleCoverage = Math.min(1, Math.min(...channels.map((channel) => channel.length)) / expected);
+  return Math.max(0, Math.min(1, activeChannels / 4 * sampleCoverage));
+}
+
+function logPacketSample(label: string, uuid: string, bytes: Uint8Array, decoded: number[] | number[][], packetCount: number, meta?: unknown) {
+  if (packetCount > 1 && packetCount % sampleRateHz !== 0) {
+    return;
+  }
+
+  const flat = Array.isArray(decoded[0]) ? (decoded as number[][]).flat() : decoded as number[];
+  const finite = flat.filter(Number.isFinite);
+
+  log.info('Muse EEG notification', {
+    byteLength: bytes.length,
+    count: finite.length,
+    label,
+    max: finite.length ? Math.max(...finite) : null,
+    min: finite.length ? Math.min(...finite) : null,
+    packetCount,
+    uuid,
+    ...((meta && typeof meta === 'object') ? meta : {}),
   });
 }
 
@@ -222,9 +365,136 @@ export const museBle = {
     }
   },
 
-  measure(durationSec: number, onTick: (tick: MuseMeasureTick) => void): Promise<MeasureEeg> {
-    void connectedDevice;
-    // TODO FE-13b-2: replace simulator fallback with real Muse EEG stream decode.
-    return museSimulator.measure(durationSec, onTick);
+  async measure(durationSec: number, onTick: (tick: MuseMeasureTick) => void, options: MuseMeasureOptions = {}): Promise<MeasureEeg> {
+    if (!connectedDevice) {
+      throw new MuseBleError('CONNECT_FAILED', 'Muse device is not connected');
+    }
+
+    const device = connectedDevice;
+    const characteristics = await getManager().characteristicsForDevice(device.id, museServiceUuid);
+    const control = findCharacteristic(characteristics, controlCharacteristicUuid);
+    const dataCharacteristics = selectDataCharacteristics(characteristics);
+
+    if (!control) {
+      throw new MuseBleError('CONNECT_FAILED', 'Muse control characteristic was not found');
+    }
+
+    if (dataCharacteristics.length === 0) {
+      throw new MuseBleError('CONNECT_FAILED', 'Muse EEG characteristics were not found');
+    }
+
+    const safeDurationSec = Math.max(1, Math.round(durationSec));
+    const channels = [[], [], [], []] as number[][];
+    const subscriptions: Subscription[] = [];
+    let packetCount = 0;
+    let controlInfoFragment = '';
+
+    const cleanup = async () => {
+      subscriptions.forEach((subscription) => subscription.remove());
+      await sendCommand(control, 'h').catch((error) => {
+        log.warn('Muse halt command failed during cleanup', { message: error instanceof Error ? error.message : String(error) });
+      });
+    };
+
+    try {
+      subscriptions.push(control.monitor((error, characteristic) => {
+        if (error) {
+          log.warn('Muse control notification error', { message: error.message });
+          return;
+        }
+
+        if (!characteristic?.value) {
+          return;
+        }
+
+        const text = decodeControlText(characteristic.value);
+        if (!text) {
+          return;
+        }
+
+        controlInfoFragment = `${controlInfoFragment}${text}`.slice(-4096);
+        log.info('Muse control response', { text });
+      }));
+
+      dataCharacteristics.forEach(({ characteristic, channelIndex, decoder, label }) => {
+        subscriptions.push(characteristic.monitor((error, nextCharacteristic) => {
+          if (error) {
+            log.warn('Muse EEG notification error', { label, message: error.message });
+            return;
+          }
+
+          if (!nextCharacteristic?.value) {
+            return;
+          }
+
+          packetCount += 1;
+          const bytes = base64ToBytes(nextCharacteristic.value);
+
+          if (decoder === 'athena') {
+            const { eegRows, packetTags } = parseAthenaDataPacket(bytes);
+            appendAthenaRows(channels, eegRows);
+            logPacketSample(label, characteristic.uuid, bytes, eegRows, packetCount, {
+              eegRowCount: eegRows.length,
+              packetTags,
+            });
+            return;
+          }
+
+          const samples = decodeClassicEegPacket(bytes);
+          channels[channelIndex].push(...samples);
+          logPacketSample(label, characteristic.uuid, bytes, samples, packetCount);
+        }));
+      });
+
+      await sendStartSequence(control, options.signal);
+
+      for (let elapsedSec = 1; elapsedSec <= safeDurationSec; elapsedSec += 1) {
+        await sleep(1000, options.signal);
+        const sampleBufferLen = Math.min(...channels.map((channel) => channel.length));
+        const signalScore = signalQualityFromChannels(channels, elapsedSec);
+
+        if (elapsedSec === 3 && sampleBufferLen === 0) {
+          log.warn('Muse data characteristics subscribed but no EEG samples arrived yet', {
+            characteristicCount: dataCharacteristics.length,
+            streamPreset,
+          });
+        }
+
+        onTick({
+          elapsedSec,
+          sampleBufferLen,
+          signalScore,
+        });
+      }
+
+      const sampleCount = Math.min(...channels.map((channel) => channel.length));
+
+      if (sampleCount === 0) {
+        throw new MuseBleError('CONNECT_FAILED', 'Muse EEG packets did not contain samples');
+      }
+
+      const signalQuality = signalQualityFromChannels(channels, safeDurationSec);
+      const bands = calculateBandPowers(channels.map((channel) => channel.slice(0, sampleCount)), sampleRateHz);
+      log.info('Muse EEG measurement complete', {
+        bands,
+        packetCount,
+        sampleCount,
+        signalQuality,
+      });
+
+      return {
+        bands,
+        deviceId: device.id,
+        deviceType: 'Muse S Athena',
+        measuredAt: new Date().toISOString(),
+        measurementDurationSec: safeDurationSec,
+        sampleCount,
+        sampleRateHz,
+        signalQuality: Number(signalQuality.toFixed(3)),
+      };
+    } finally {
+      await cleanup();
+      void controlInfoFragment;
+    }
   },
 };

@@ -1,5 +1,10 @@
 import type { MeasureEeg } from '@/api/types';
-import { museSimulator, type MuseMeasureTick, type SimulatedMuseDevice } from '@/screens/measure/museSimulator';
+import {
+  museSimulator,
+  type MuseMeasureOptions,
+  type MuseMeasureTick,
+  type SimulatedMuseDevice,
+} from '@/screens/measure/museSimulator';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 interface MuseClient {
@@ -12,7 +17,7 @@ interface MuseClient {
     signalQuality: number;
     lastConnectedAt: number;
   }>;
-  measure(durationSec: number, onTick: (tick: MuseMeasureTick) => void): Promise<MeasureEeg>;
+  measure(durationSec: number, onTick: (tick: MuseMeasureTick) => void, options?: MuseMeasureOptions): Promise<MeasureEeg>;
 }
 
 export type MuseGatewayMode = 'sim' | 'real';
@@ -41,7 +46,7 @@ export const museGateway = {
     return (await getMuseClient()).connect(deviceId);
   },
 
-  async measure(durationSec: number, onTick: (tick: MuseMeasureTick) => void) {
-    return (await getMuseClient()).measure(durationSec, onTick);
+  async measure(durationSec: number, onTick: (tick: MuseMeasureTick) => void, options?: MuseMeasureOptions) {
+    return (await getMuseClient()).measure(durationSec, onTick, options);
   },
 };

@@ -34,6 +34,8 @@ export function MuseMeasureScreen() {
   const cancelledRef = useRef(false);
 
   useEffect(() => {
+    const abortController = new AbortController();
+
     async function runMeasure() {
       cancelledRef.current = false;
       setMuseStatus('measuring');
@@ -49,7 +51,7 @@ export function MuseMeasureScreen() {
           setSampleBufferLen(tick.sampleBufferLen);
           setSignalScore(tick.signalScore);
           setPhase(tick.elapsedSec < warmupSec ? 'warmup' : 'recording');
-        });
+        }, { signal: abortController.signal });
 
         if (cancelledRef.current) {
           return;
@@ -65,6 +67,10 @@ export function MuseMeasureScreen() {
         });
         navigation.navigate('Measure/Result');
       } catch {
+        if (cancelledRef.current) {
+          return;
+        }
+
         setError('Muse 측정을 완료하지 못했어요. 다시 시도해 주세요.');
         setMuseStatus('connected');
         noosTelemetry.track('muse_measure_abort', { reason: 'error' });
@@ -75,6 +81,7 @@ export function MuseMeasureScreen() {
 
     return () => {
       cancelledRef.current = true;
+      abortController.abort();
     };
   }, [navigation, setFromMeasure, setMuseStatus, surveyDraft]);
 
