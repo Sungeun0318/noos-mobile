@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,7 +22,8 @@ type HistoryListProps = NativeStackScreenProps<HistoryStackParamList, 'History/L
 export function HistoryListScreen({ navigation }: HistoryListProps) {
   const insets = useSafeAreaInsets();
   const simulationMode = useSettingsStore((state) => state.simulationMode);
-  const localSessions = useHistoryStore((state) => listHistorySessions(state.sessions));
+  const historySessions = useHistoryStore((state) => state.sessions);
+  const localSessions = useMemo(() => listHistorySessions(historySessions), [historySessions]);
   const mode = simulationMode ? 'mock' : 'real';
   const historyQuery = useQuery({
     queryFn: () => listHistory(mode),
