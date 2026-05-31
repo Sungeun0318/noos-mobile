@@ -2,6 +2,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { Button, Card, Toast } from '@/components/ui';
@@ -93,23 +94,23 @@ export function MuseConnectScreen() {
         {error ? <Toast message={error} variant="danger" /> : null}
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Muse</Text>
-          <Text style={styles.title}>Muse를 연결해</Text>
+          <Text style={styles.title}>Muse 연결</Text>
           <Text style={styles.description}>
-            {simulationMode ? 'Muse-SIM으로 연결 흐름을 검증해.' : '실제 Muse 기기를 Bluetooth로 찾아 연결해.'}
+            {simulationMode ? 'Muse-SIM으로 연결 흐름을 검증합니다.' : '실제 Muse 기기를 Bluetooth로 찾아 연결합니다.'}
           </Text>
         </View>
 
         <Card level={2} padding="xl" variant="hero">
           <View style={styles.connectHero}>
             <View style={styles.signalOrb}>
-              <Text style={styles.signalOrbText}>{simulationMode ? 'SIM' : 'BLE'}</Text>
+              {simulationMode ? <SimulationGlyph /> : <BluetoothGlyph />}
             </View>
             <View style={styles.switchText}>
               <Text style={styles.cardTitle}>{simulationMode ? 'Muse-SIM 준비됨' : 'Bluetooth 스캔 준비'}</Text>
               <Text style={styles.description}>
                 {simulationMode
-                  ? '권한 없이 바로 Muse 연결 흐름을 확인할 수 있어.'
-                  : '스캔을 시작하면 권한 요청 후 Muse 후보를 먼저 보여줘.'}
+                  ? '권한 없이 바로 Muse 연결 흐름을 확인할 수 있습니다.'
+                  : '스캔을 시작하면 권한 요청 후 Muse 후보를 먼저 보여줍니다.'}
               </Text>
             </View>
           </View>
@@ -121,8 +122,8 @@ export function MuseConnectScreen() {
               <Text style={styles.cardTitle}>Simulation EEG</Text>
               <Text style={styles.metaText}>
                 {simulationMode
-                  ? 'Muse-SIM을 사용해. 실제 기기 없이 측정 흐름을 확인할 수 있어.'
-                  : '실제 Muse BLE를 사용해. EEG 디코딩은 FE-13b-2에서 연결해.'}
+                  ? 'Muse-SIM으로 연결과 측정 흐름을 확인합니다.'
+                  : '실제 Muse를 Bluetooth로 연결하여 EEG 측정을 진행합니다.'}
               </Text>
             </View>
             <Switch value={simulationMode} onValueChange={setSimulationMode} />
@@ -196,7 +197,7 @@ export function MuseConnectScreen() {
                 <Text style={styles.metaText}>{connectedDeviceName}</Text>
               </View>
               <Text style={styles.description}>
-                설문 없이 EEG만 바로 측정하거나, 설문을 함께 입력해서 hybrid 결과로 진행할 수 있어.
+                설문 없이 EEG만 바로 측정하거나, 설문을 함께 입력해서 hybrid 결과로 진행할 수 있습니다.
               </Text>
               <View style={styles.choiceActions}>
                 <Button label="EEG만 측정하기" onPress={startEegOnlyMeasure} variant="primary" />
@@ -218,6 +219,37 @@ function getVisibleDevices(devices: SimulatedMuseDevice[], showDiagnosticDevices
   }
 
   return museCandidates;
+}
+
+function BluetoothGlyph() {
+  return (
+    <Svg
+      accessibilityLabel="Bluetooth"
+      height={space['4xl']}
+      viewBox="0 0 24 24"
+      width={space['4xl']}
+    >
+      <Path
+        d="M7 7l10 10-5 4V3l5 4L7 17"
+        fill="none"
+        stroke={color.brand.accent}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2.4}
+      />
+    </Svg>
+  );
+}
+
+function SimulationGlyph() {
+  return (
+    <View style={styles.simGlyph}>
+      <View style={[styles.simPulse, styles.simPulseSmall]} />
+      <View style={styles.simPulse} />
+      <View style={[styles.simPulse, styles.simPulseTall]} />
+      <View style={styles.simPulse} />
+    </View>
+  );
 }
 
 function mapMuseError(error: unknown, fallbackCode: 'SCAN_FAILED' | 'CONNECT_FAILED') {
@@ -262,12 +294,13 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   connectHero: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
     gap: space.lg,
   },
   connectedHeader: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: space.sm,
     justifyContent: 'space-between',
   },
@@ -284,14 +317,16 @@ const styles = StyleSheet.create({
   },
   deviceName: {
     color: color.text.primary,
+    flexShrink: 1,
     fontFamily: type.h3.family,
     fontSize: type.h3.size,
     fontWeight: type.h3.weight,
     lineHeight: type.h3.lineHeight,
   },
   deviceRow: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: space.md,
     justifyContent: 'space-between',
   },
@@ -320,8 +355,9 @@ const styles = StyleSheet.create({
     lineHeight: type.small.lineHeight,
   },
   sectionHeader: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: space.md,
     justifyContent: 'space-between',
   },
@@ -334,6 +370,7 @@ const styles = StyleSheet.create({
   },
   secondaryDeviceName: {
     color: color.text.secondary,
+    flexShrink: 1,
     fontFamily: type.bodyMd.family,
     fontSize: type.bodyMd.size,
     fontWeight: type.bodyMd.weight,
@@ -350,23 +387,36 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     height: space['6xl'],
     justifyContent: 'center',
+    flexShrink: 0,
     width: space['6xl'],
   },
-  signalOrbText: {
-    color: color.text.primary,
-    fontFamily: type.h3.family,
-    fontSize: type.h3.size,
-    fontWeight: type.h3.weight,
-    lineHeight: type.h3.lineHeight,
+  simGlyph: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space.xs,
+  },
+  simPulse: {
+    backgroundColor: color.brand.accent,
+    borderRadius: radius.pill,
+    height: space.xl,
+    width: space.xs,
+  },
+  simPulseSmall: {
+    height: space.lg,
+  },
+  simPulseTall: {
+    height: space['3xl'],
   },
   switchRow: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
     gap: space.md,
   },
   switchText: {
     flex: 1,
+    flexShrink: 1,
     gap: space.xs,
+    minWidth: 0,
   },
   title: {
     color: color.text.primary,

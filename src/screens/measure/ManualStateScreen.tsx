@@ -84,7 +84,7 @@ export function ManualStateScreen() {
       setFromMeasure(response);
       navigation.navigate('Measure/Result');
     } catch {
-      setError('측정 결과를 만들지 못했어요. 다시 시도해주세요.');
+      setError('측정 결과를 만들지 못했어요. 다시 시도해 주세요.');
     } finally {
       setSubmitting(false);
     }
@@ -151,7 +151,7 @@ export function ManualStateScreen() {
 
         {withEeg ? (
           <Card level={2} padding="lg" variant="glass">
-            <Text style={styles.description}>Muse가 연결됐어. 이어서 60초 EEG 측정으로 정확도를 높일 수 있어.</Text>
+            <Text style={styles.description}>Muse가 연결되었습니다. 이어서 60초 EEG 측정으로 정확도를 높일 수 있습니다.</Text>
           </Card>
         ) : null}
 
@@ -260,6 +260,7 @@ function SurveyQuestion({
 const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: space.sm,
     justifyContent: 'space-between',
   },
@@ -287,6 +288,8 @@ const styles = StyleSheet.create({
   },
   metaRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.xs,
     justifyContent: 'space-between',
   },
   note: {
@@ -302,7 +305,9 @@ const styles = StyleSheet.create({
     borderColor: color.border.default,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    flexBasis: '31%',
+    flexGrow: 1,
+    flexBasis: '30%',
+    minWidth: space['6xl'],
     gap: space.xs,
     minHeight: space['5xl'],
     paddingHorizontal: space.xs,
@@ -431,6 +436,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: color.text.primary,
+    flexShrink: 1,
     fontFamily: type.h2.family,
     fontSize: type.h2.size,
     fontWeight: type.h2.weight,

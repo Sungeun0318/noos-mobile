@@ -103,7 +103,7 @@ export function MuseMeasureScreen() {
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Muse EEG</Text>
           <Text style={styles.title}>60초 동안 측정 중</Text>
-          <Text style={styles.description}>화면을 켜둔 채로 편하게 호흡해.</Text>
+          <Text style={styles.description}>화면을 켜둔 채로 편하게 호흡해 주세요.</Text>
         </View>
 
         <Card level={2} padding="xl" variant="hero">
@@ -217,8 +217,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   qualityRow: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
     justifyContent: 'space-between',
   },
   signalRing: {

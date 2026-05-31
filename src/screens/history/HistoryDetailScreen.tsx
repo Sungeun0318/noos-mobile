@@ -58,7 +58,7 @@ export function HistoryDetailScreen({ navigation, route }: HistoryDetailProps) {
     return (
       <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
         <Text style={styles.title}>세션을 불러오는 중</Text>
-        <Text style={styles.bodyText}>상세 기록을 확인하고 있어.</Text>
+        <Text style={styles.bodyText}>상세 기록을 확인하고 있습니다.</Text>
       </View>
     );
   }
@@ -67,7 +67,7 @@ export function HistoryDetailScreen({ navigation, route }: HistoryDetailProps) {
     return (
       <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
         <Text style={styles.title}>세션을 찾을 수 없어요</Text>
-        <Text style={styles.bodyText}>기록이 삭제됐거나 아직 동기화되지 않았어.</Text>
+        <Text style={styles.bodyText}>기록이 삭제됐거나 아직 동기화되지 않았습니다.</Text>
         <Button label="뒤로" onPress={navigation.goBack} />
       </View>
     );
