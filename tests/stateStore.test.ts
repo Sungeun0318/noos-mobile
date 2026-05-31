@@ -98,4 +98,12 @@ describe('stateStore', () => {
       alternates: [],
     });
   });
+
+  it('clears stale survey draft for EEG-only Muse measurement', () => {
+    useStateStore.getState().setSurveyDraft({ focus: 0.8, stress: 0.1, intentText: '  code  ' });
+
+    useStateStore.getState().setSurveyDraft(null);
+
+    expect(useStateStore.getState().surveyDraft).toBeNull();
+  });
 });

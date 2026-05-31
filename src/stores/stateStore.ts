@@ -24,7 +24,7 @@ export interface StateStoreShape {
   source: MeasureSource | null;
   measuredAt: string | null;
   intentText: string | null;
-  setSurveyDraft(survey: MeasureSurvey): void;
+  setSurveyDraft(survey: MeasureSurvey | null): void;
   setFromMeasure(response: MeasureResponse): void;
   clear(): void;
 }
@@ -83,7 +83,7 @@ export const useStateStore = create<StateStoreShape>()(
   persist(
     (set, get) => ({
       ...initialState,
-      setSurveyDraft: (survey) => set({ surveyDraft: normalizeSurveyDraft(survey) }),
+      setSurveyDraft: (survey) => set({ surveyDraft: survey ? normalizeSurveyDraft(survey) : null }),
       setFromMeasure: (response) => {
         const surveyDraft = get().surveyDraft;
 

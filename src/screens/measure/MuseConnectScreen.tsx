@@ -10,6 +10,7 @@ import { museGateway } from '@/screens/measure/museGateway';
 import type { SimulatedMuseDevice } from '@/screens/measure/museSimulator';
 import { useDeviceStore } from '@/stores/deviceStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useStateStore } from '@/stores/stateStore';
 import { color, space, type } from '@/theme';
 
 type MuseConnectNavigation = NativeStackNavigationProp<MeasureStackParamList, 'Measure/MuseConnect'>;
@@ -20,9 +21,11 @@ export function MuseConnectScreen() {
   const setSimulationMode = useSettingsStore((state) => state.setSimulationMode);
   const setMuseStatus = useDeviceStore((state) => state.setMuseStatus);
   const setMuseConnection = useDeviceStore((state) => state.setMuseConnection);
+  const setSurveyDraft = useStateStore((state) => state.setSurveyDraft);
   const [devices, setDevices] = useState<SimulatedMuseDevice[]>([]);
   const [scanning, setScanning] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
+  const [connectedDeviceName, setConnectedDeviceName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hasMuseCandidate = devices.some((device) => device.isMuseCandidate);
   const [showDiagnosticDevices, setShowDiagnosticDevices] = useState(false);
@@ -56,8 +59,8 @@ export function MuseConnectScreen() {
     try {
       const connection = await museGateway.connect(device.deviceId);
       setMuseConnection({ ...connection, status: 'connected' });
+      setConnectedDeviceName(connection.deviceName);
       noosTelemetry.track('muse_connect_success', { rssi: connection.rssi });
-      navigation.navigate('Measure/Manual');
     } catch (connectError) {
       const mapped = mapMuseError(connectError, 'CONNECT_FAILED');
       setError(mapped.message);
@@ -66,6 +69,15 @@ export function MuseConnectScreen() {
     } finally {
       setConnectingId(null);
     }
+  }
+
+  function startEegOnlyMeasure() {
+    setSurveyDraft(null);
+    navigation.navigate('Measure/MuseMeasure');
+  }
+
+  function addSurveyBeforeMeasure() {
+    navigation.navigate('Measure/Manual');
   }
 
   useEffect(() => {
@@ -163,6 +175,24 @@ export function MuseConnectScreen() {
           </Card>
         ))}
       </View>
+
+      {connectedDeviceName ? (
+        <Card level={1} padding="lg">
+          <View style={styles.stack}>
+            <View style={styles.connectedHeader}>
+              <Text style={styles.cardTitle}>연결됨</Text>
+              <Text style={styles.metaText}>{connectedDeviceName}</Text>
+            </View>
+            <Text style={styles.description}>
+              설문 없이 EEG만 바로 측정하거나, 설문을 함께 입력해서 hybrid 결과로 진행할 수 있어.
+            </Text>
+            <View style={styles.choiceActions}>
+              <Button label="EEG만 측정하기" onPress={startEegOnlyMeasure} variant="primary" />
+              <Button label="설문도 함께 입력하기" onPress={addSurveyBeforeMeasure} variant="secondary" />
+            </View>
+          </View>
+        </Card>
+      ) : null}
     </ScrollView>
   );
 }
@@ -217,6 +247,14 @@ const styles = StyleSheet.create({
   },
   container: {
     backgroundColor: color.bg.base,
+  },
+  choiceActions: {
+    gap: space.sm,
+  },
+  connectedHeader: {
+    flexDirection: 'row',
+    gap: space.sm,
+    justifyContent: 'space-between',
   },
   content: {
     gap: space.xl,

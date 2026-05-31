@@ -13,9 +13,10 @@ export interface MuseMeasureTick {
   sampleBufferLen: number;
 }
 
-interface MuseMeasureOptions {
+export interface MuseMeasureOptions {
   tickMs?: number;
   now?: () => number;
+  signal?: AbortSignal;
 }
 
 const sampleRateHz = 256;
@@ -71,6 +72,10 @@ export const museSimulator = {
     const safeDurationSec = Math.max(1, Math.round(durationSec));
 
     for (let elapsedSec = 1; elapsedSec <= safeDurationSec; elapsedSec += 1) {
+      if (options.signal?.aborted) {
+        throw new Error('measure aborted');
+      }
+
       if (tickMs > 0) {
         await delay(tickMs);
       }
