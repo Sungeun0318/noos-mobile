@@ -2,8 +2,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { BrandBackdrop } from '@/components/backdrop/BrandBackdrop';
 import { NoosLogo } from '@/components/brand/NoosLogo';
-import { Button, TextInput, Toast } from '@/components/ui';
+import { Button, Card, TextInput, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { AuthStackParamList } from '@/navigation/AuthStack';
 import { authErrorMessage } from '@/screens/auth/authValidation';
@@ -47,60 +48,73 @@ export function LoginScreen({ navigation }: LoginProps) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-      <View style={styles.header}>
-        <NoosLogo size={space['4xl']} />
-        <Text style={styles.title}>로그인</Text>
-        <Text style={styles.description}>NOOS 웹과 같은 계정을 사용해요.</Text>
-      </View>
+    <BrandBackdrop>
+      <ScrollView contentContainerStyle={styles.content} style={styles.container}>
+        <View style={styles.header}>
+          <NoosLogo size={logoSize} />
+          <View style={styles.headerCopy}>
+            <Text style={styles.eyebrow}>NOOS Account</Text>
+            <Text style={styles.title}>로그인</Text>
+            <Text style={styles.description}>NOOS 웹과 같은 계정을 사용해요.</Text>
+          </View>
+        </View>
 
-      {mode === 'authed' ? (
-        <Toast message={`이미 ${user?.displayName ?? 'NOOS 계정'}으로 로그인되어 있어요`} variant="info" />
-      ) : null}
-      {error ? <Toast message={error} variant="danger" /> : null}
+        {mode === 'authed' ? (
+          <Toast message={`이미 ${user?.displayName ?? 'NOOS 계정'}으로 로그인되어 있어요`} variant="info" />
+        ) : null}
+        {error ? <Toast message={error} variant="danger" /> : null}
 
-      <View style={styles.form}>
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          label="아이디"
-          onChangeText={setLoginId}
-          textContentType="username"
-          value={loginId}
-        />
-        <TextInput
-          label="비밀번호"
-          onChangeText={setPassword}
-          secureTextEntry
-          textContentType="password"
-          value={password}
-        />
-      </View>
+        <Card level={2} padding="xl" variant="glass">
+          <View style={styles.formPanel}>
+            <View style={styles.form}>
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                label="아이디"
+                onChangeText={setLoginId}
+                textContentType="username"
+                value={loginId}
+              />
+              <TextInput
+                label="비밀번호"
+                onChangeText={setPassword}
+                secureTextEntry
+                textContentType="password"
+                value={password}
+              />
+            </View>
 
-      <View style={styles.actions}>
-        <Button
-          fullWidth
-          label="로그인"
-          loading={submitting}
-          disabled={mode === 'authed' || !loginId || !password}
-          onPress={() => void submit()}
-          size="lg"
-        />
-        <Button label="회원가입" onPress={goSignup} variant="ghost" />
-      </View>
-    </ScrollView>
+            <View style={styles.actions}>
+              <Button
+                fullWidth
+                label="로그인"
+                loading={submitting}
+                disabled={mode === 'authed' || !loginId || !password}
+                onPress={() => void submit()}
+                size="lg"
+              />
+              <Button label="회원가입" onPress={goSignup} variant="ghost" />
+            </View>
+          </View>
+        </Card>
+      </ScrollView>
+    </BrandBackdrop>
   );
 }
+
+const logoSize = space['5xl'];
 
 const styles = StyleSheet.create({
   actions: {
     gap: space.sm,
   },
   container: {
-    backgroundColor: color.bg.base,
+    backgroundColor: 'transparent',
   },
   content: {
-    gap: space.xl,
+    flexGrow: 1,
+    gap: space['2xl'],
+    justifyContent: 'center',
     padding: space.xl,
   },
   description: {
@@ -109,12 +123,29 @@ const styles = StyleSheet.create({
     fontSize: type.body.size,
     fontWeight: type.body.weight,
     lineHeight: type.body.lineHeight,
+    textAlign: 'center',
   },
   form: {
     gap: space.lg,
   },
+  formPanel: {
+    gap: space.xl,
+  },
   header: {
-    gap: space.sm,
+    alignItems: 'center',
+    gap: space.lg,
+  },
+  headerCopy: {
+    alignItems: 'center',
+    gap: space.xs,
+  },
+  eyebrow: {
+    color: color.text.tertiary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    letterSpacing: 0.4,
+    lineHeight: type.caption.lineHeight,
   },
   title: {
     color: color.text.primary,
