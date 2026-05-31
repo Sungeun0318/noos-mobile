@@ -1,4 +1,5 @@
-import { Easing, Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
+import { Easing } from 'react-native-reanimated';
 
 export const color = {
   bg: {
@@ -98,7 +99,19 @@ export const elevation = {
 } as const;
 
 export const motion = {
-  duration: { xfast: 120, fast: 180, base: 220, slow: 320, slower: 480 },
+  duration: {
+    xfast: 120,
+    fast: 180,
+    base: 220,
+    slow: 320,
+    slower: 480,
+    pulse: 1200,
+    wave: 960,
+    ambient: 9000,
+  },
+  stagger: {
+    waveBar: 70,
+  },
   easing: {
     standard: Easing.bezier(0.2, 0, 0, 1),
     decel: Easing.bezier(0, 0, 0.2, 1),

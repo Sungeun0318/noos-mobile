@@ -3,15 +3,23 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { resolveAudioSource } from '@/audio/resolveAudioSource';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
+import { useReducedMotion } from '@/lib/useReducedMotion';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
 import { useSessionStore } from '@/stores/sessionStore';
-import { color, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
+import { color, motion, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
 
 type PlayerProps = NativeStackScreenProps<JourneyStackParamList, 'Journey/Player'>;
 type PlayState = 'loading' | 'playing' | 'paused' | 'ended' | 'error';
@@ -199,7 +207,7 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
           <Text style={styles.bodyText}>{active.summary?.description ?? planet.description}</Text>
         </View>
 
-        <Waveform planet={active.planet} />
+        <Waveform active={status.playing && playState === 'playing'} planet={active.planet} />
 
         {playState === 'error' ? (
           <View style={styles.stack}>
@@ -258,23 +266,73 @@ function LightingStatusPill() {
   );
 }
 
-function Waveform({ planet }: { planet: keyof typeof PLANETS }) {
+function Waveform({ active, planet }: { active: boolean; planet: keyof typeof PLANETS }) {
   return (
     <View style={styles.waveform}>
-      {/* TODO FE-XX: animate waveform with reanimated once that dependency is approved. */}
       {waveformBars.map((height, index) => (
-        <View
+        <WaveformBar
+          active={active}
+          baseHeight={space[height]}
+          colorValue={PLANET_COLORS[planet].secondary}
+          index={index}
           key={`${height}-${index}`}
-          style={[
-            styles.waveformBar,
-            {
-              backgroundColor: PLANET_COLORS[planet].secondary,
-              height: space[height],
-            },
-          ]}
         />
       ))}
     </View>
+  );
+}
+
+function WaveformBar({
+  active,
+  baseHeight,
+  colorValue,
+  index,
+}: {
+  active: boolean;
+  baseHeight: number;
+  colorValue: string;
+  index: number;
+}) {
+  const reduceMotion = useReducedMotion();
+  const pulse = useSharedValue(1);
+
+  useEffect(() => {
+    if (!active || reduceMotion) {
+      pulse.value = withTiming(1, {
+        duration: motion.duration.fast,
+        easing: motion.easing.decel,
+      });
+      return;
+    }
+
+    pulse.value = withDelay(
+      index * motion.stagger.waveBar,
+      withRepeat(
+        withTiming(1.34, {
+          duration: motion.duration.wave,
+          easing: motion.easing.standard,
+        }),
+        -1,
+        true
+      )
+    );
+  }, [active, index, pulse, reduceMotion]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleY: pulse.value }],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.waveformBar,
+        {
+          backgroundColor: colorValue,
+          height: baseHeight,
+        },
+        animatedStyle,
+      ]}
+    />
   );
 }
 
@@ -303,15 +361,29 @@ function IconControl({
 }
 
 function ProgressBar({ planet, progress }: { planet: keyof typeof PLANETS; progress: number }) {
+  const reduceMotion = useReducedMotion();
+  const animatedProgress = useSharedValue(progress);
+
+  useEffect(() => {
+    animatedProgress.value = withTiming(progress, {
+      duration: reduceMotion ? motion.duration.xfast : motion.duration.base,
+      easing: motion.easing.decel,
+    });
+  }, [animatedProgress, progress, reduceMotion]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    width: `${Math.round(animatedProgress.value * 100)}%`,
+  }));
+
   return (
     <View style={styles.progressTrack}>
-      <View
+      <Animated.View
         style={[
           styles.progressFill,
           {
             backgroundColor: PLANET_COLORS[planet].secondary,
-            width: `${Math.round(progress * 100)}%`,
           },
+          animatedStyle,
         ]}
       />
     </View>
