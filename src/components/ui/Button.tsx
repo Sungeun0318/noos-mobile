@@ -87,10 +87,12 @@ const styles = StyleSheet.create({
     color: color.text.primary,
   },
   label: {
+    flexShrink: 1,
     fontFamily: type.bodyMd.family,
     fontSize: type.bodyMd.size,
     fontWeight: type.bodyMd.weight,
     lineHeight: type.bodyMd.lineHeight,
+    textAlign: 'center',
   },
   pressed: {
     opacity: 0.85,

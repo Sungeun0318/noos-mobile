@@ -35,24 +35,24 @@ export function MeasureHomeScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Measure</Text>
-          <Text style={styles.title}>측정 방식을 선택해</Text>
-          <Text style={styles.description}>Muse 시뮬레이션 또는 수동 설문으로 상태를 만들 수 있어.</Text>
+          <Text style={styles.title}>측정 방식 선택</Text>
+          <Text style={styles.description}>Muse 시뮬레이션 또는 수동 설문으로 상태를 만들 수 있습니다.</Text>
         </View>
 
         <DeviceStatusInline status={muse.status} signalQuality={muse.signalQuality} />
 
         <View style={styles.stack}>
           <MeasureMethodCard
-            description="Muse 연결 후 EEG만 측정하거나, 설문을 더해 hybrid 결과로 진행해."
-            iconLabel="EEG"
+            description="Muse 연결 후 EEG만 측정하거나, 설문을 더해 hybrid 결과로 진행합니다."
             label="Muse로 측정"
+            method="muse"
             onPress={() => selectMethod('muse')}
             tag="빠른 측정"
           />
           <MeasureMethodCard
-            description="19문항 검증 설문으로 지금의 집중, 스트레스, 피로, 이완 상태를 계산해."
-            iconLabel="19"
+            description="19문항 검증 설문으로 지금의 집중, 스트레스, 피로, 이완 상태를 계산합니다."
             label="설문으로 측정"
+            method="manual"
             onPress={() => selectMethod('manual')}
             tag="검증 설문"
           />
@@ -83,22 +83,20 @@ function DeviceStatusInline({
 function MeasureMethodCard({
   label,
   description,
-  iconLabel,
+  method,
   tag,
   onPress,
 }: {
   label: string;
   description: string;
-  iconLabel: string;
+  method: MeasureMethod;
   tag: string;
   onPress: () => void;
 }) {
   return (
     <Card level={2} onPress={onPress} padding="xl" variant="hero">
       <View style={styles.methodRow}>
-        <View style={styles.methodIcon}>
-          <Text style={styles.methodIconText}>{iconLabel}</Text>
-        </View>
+        <MethodIcon method={method} />
         <View style={styles.cardStack}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>{label}</Text>
@@ -111,18 +109,53 @@ function MeasureMethodCard({
   );
 }
 
+function MethodIcon({ method }: { method: MeasureMethod }) {
+  if (method === 'muse') {
+    return (
+      <View style={styles.methodIcon}>
+        <View style={styles.waveRow}>
+          <View style={[styles.waveBar, styles.waveBarShort]} />
+          <View style={[styles.waveBar, styles.waveBarTall]} />
+          <View style={[styles.waveBar, styles.waveBarMid]} />
+          <View style={[styles.waveBar, styles.waveBarTall]} />
+          <View style={[styles.waveBar, styles.waveBarShort]} />
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.methodIcon}>
+      <View style={styles.surveyGlyph}>
+        <View style={styles.surveyLine} />
+        <View style={[styles.surveyLine, styles.surveyLineShort]} />
+        <View style={styles.surveyDots}>
+          <View style={styles.surveyDot} />
+          <View style={styles.surveyDot} />
+          <View style={styles.surveyDot} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   cardHeader: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: space.md,
     justifyContent: 'space-between',
   },
   cardStack: {
+    flex: 1,
+    flexShrink: 1,
     gap: space.sm,
+    minWidth: 0,
   },
   cardTitle: {
     color: color.text.primary,
+    flexShrink: 1,
     fontFamily: type.h2.family,
     fontSize: type.h2.size,
     fontWeight: type.h2.weight,
@@ -140,17 +173,11 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     height: space['6xl'],
     justifyContent: 'center',
+    flexShrink: 0,
     width: space['6xl'],
   },
-  methodIconText: {
-    color: color.text.primary,
-    fontFamily: type.h3.family,
-    fontSize: type.h3.size,
-    fontWeight: type.h3.weight,
-    lineHeight: type.h3.lineHeight,
-  },
   methodRow: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
     gap: space.lg,
   },
@@ -209,9 +236,33 @@ const styles = StyleSheet.create({
     fontWeight: type.bodyMd.weight,
     lineHeight: type.bodyMd.lineHeight,
   },
+  surveyDot: {
+    backgroundColor: color.brand.accent,
+    borderRadius: radius.pill,
+    height: space.xs,
+    width: space.xs,
+  },
+  surveyDots: {
+    flexDirection: 'row',
+    gap: space.xs,
+  },
+  surveyGlyph: {
+    gap: space.xs,
+    width: space['3xl'],
+  },
+  surveyLine: {
+    backgroundColor: color.text.primary,
+    borderRadius: radius.pill,
+    height: space.xs,
+    width: '100%',
+  },
+  surveyLineShort: {
+    width: '72%',
+  },
   tag: {
     color: color.brand.accent,
     fontFamily: type.caption.family,
+    flexShrink: 0,
     fontSize: type.caption.size,
     fontWeight: type.caption.weight,
     letterSpacing: 0.4,
@@ -223,5 +274,24 @@ const styles = StyleSheet.create({
     fontSize: type.h1.size,
     fontWeight: type.h1.weight,
     lineHeight: type.h1.lineHeight,
+  },
+  waveBar: {
+    backgroundColor: color.brand.accent,
+    borderRadius: radius.pill,
+    width: space.xs,
+  },
+  waveBarMid: {
+    height: space.xl,
+  },
+  waveBarShort: {
+    height: space.lg,
+  },
+  waveBarTall: {
+    height: space['3xl'],
+  },
+  waveRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space.xs,
   },
 });
