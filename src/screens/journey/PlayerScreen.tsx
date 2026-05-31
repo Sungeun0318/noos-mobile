@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -6,12 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { resolveAudioSource } from '@/audio/resolveAudioSource';
+import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
 import { useSessionStore } from '@/stores/sessionStore';
-import { color, planetGradient, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
+import { color, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
 
 type PlayerProps = NativeStackScreenProps<JourneyStackParamList, 'Journey/Player'>;
 type PlayState = 'loading' | 'playing' | 'paused' | 'ended' | 'error';
@@ -165,70 +165,87 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
 
   if (!activeMatchesRoute || !active) {
     return (
-      <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
+      <ScreenBackdrop style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
         <Text style={styles.title}>재생할 세션이 없어요</Text>
         <Text style={styles.bodyText}>준비 완료된 세션에서 다시 재생을 시작해 주세요.</Text>
         <Button label="Today로 이동" onPress={goToday} />
-      </View>
+      </ScreenBackdrop>
     );
   }
 
   const planet = PLANETS[active.planet];
-  const gradient = planetGradient(active.planet);
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingBottom: insets.bottom + space['6xl'],
-          paddingTop: insets.top + space.xl,
-        },
-      ]}
-      style={styles.container}
-    >
-      <LinearGradient colors={gradient.colors} locations={gradient.locations} style={styles.hero}>
-        <PlanetImage planet={active.planet} round size={orbSize} style={styles.planetImage} />
-      </LinearGradient>
+    <ScreenBackdrop planet={active.planet}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: insets.bottom + space['6xl'],
+            paddingTop: insets.top + space.xl,
+          },
+        ]}
+      >
+        <LightingStatusPill />
 
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>{planet.title}</Text>
-        <Text style={styles.title}>{active.summary?.title ?? planet.trackName}</Text>
-        <Text style={styles.bodyText}>{active.summary?.description ?? planet.description}</Text>
-      </View>
-
-      <LightingStatusPill />
-      <Waveform planet={active.planet} />
-
-      {playState === 'error' ? (
-        <View style={styles.stack}>
-          <Toast message="재생에 실패했어요" variant="danger" />
-          <Button label="다시 시도" onPress={retryPlayback} variant="secondary" />
-          <Button label="Today로 이동" onPress={goToday} variant="ghost" />
+        <View style={styles.stage}>
+          <View pointerEvents="none" style={styles.planetAura} />
+          <PlanetImage planet={active.planet} round size={orbSize} style={styles.planetImage} />
         </View>
-      ) : (
-        <View style={styles.playerPanel}>
-          <ProgressBar planet={active.planet} progress={progress} />
-          <View style={styles.timeRow}>
-            <Text style={styles.timeText}>{formatTime(positionSec)}</Text>
-            <Text style={styles.timeText}>{formatTime(durationSec)}</Text>
-          </View>
-          <View style={styles.controls}>
-            <Button label="-15초" onPress={() => void seekBy(-15)} variant="secondary" />
-            <Pressable accessibilityRole="button" onPress={togglePlayback} style={styles.playButton}>
-              {playState === 'loading' ? (
-                <ActivityIndicator color={color.text.inverse} />
-              ) : (
-                <Text style={styles.playButtonText}>{status.playing ? '일시정지' : '재생'}</Text>
-              )}
-            </Pressable>
-            <Button label="+15초" onPress={() => void seekBy(15)} variant="secondary" />
-          </View>
-        </View>
-      )}
 
-      <Button fullWidth label="세션 종료" onPress={endSession} variant="destructive" />
-    </ScrollView>
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>{planet.title}</Text>
+          <Text style={styles.title}>{active.summary?.title ?? planet.trackName}</Text>
+          <Text style={styles.bodyText}>{active.summary?.description ?? planet.description}</Text>
+        </View>
+
+        <Waveform planet={active.planet} />
+
+        {playState === 'error' ? (
+          <View style={styles.stack}>
+            <Toast message="재생에 실패했어요" variant="danger" />
+            <Button label="다시 시도" onPress={retryPlayback} variant="secondary" />
+            <Button label="Today로 이동" onPress={goToday} variant="ghost" />
+          </View>
+        ) : (
+          <View style={styles.playerPanel}>
+            <ProgressBar planet={active.planet} progress={progress} />
+            <View style={styles.timeRow}>
+              <Text style={styles.timeText}>{formatTime(positionSec)}</Text>
+              <Text style={styles.timeText}>{formatTime(durationSec)}</Text>
+            </View>
+            <View style={styles.controls}>
+              <IconControl
+                accessibilityLabel="15초 뒤로 이동"
+                label="↺"
+                secondaryLabel="15"
+                onPress={() => void seekBy(-15)}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={status.playing ? '일시정지' : '재생'}
+                onPress={togglePlayback}
+                style={styles.playButton}
+              >
+                {playState === 'loading' ? (
+                  <ActivityIndicator color={color.text.inverse} />
+                ) : (
+                  <Text style={styles.playButtonText}>{status.playing ? 'Ⅱ' : '▶'}</Text>
+                )}
+              </Pressable>
+              <IconControl
+                accessibilityLabel="15초 앞으로 이동"
+                label="↻"
+                secondaryLabel="15"
+                onPress={() => void seekBy(15)}
+              />
+            </View>
+          </View>
+        )}
+
+        <Button fullWidth label="세션 종료" onPress={endSession} variant="destructive" />
+      </ScrollView>
+    </ScreenBackdrop>
   );
 }
 
@@ -244,6 +261,7 @@ function LightingStatusPill() {
 function Waveform({ planet }: { planet: keyof typeof PLANETS }) {
   return (
     <View style={styles.waveform}>
+      {/* TODO FE-XX: animate waveform with reanimated once that dependency is approved. */}
       {waveformBars.map((height, index) => (
         <View
           key={`${height}-${index}`}
@@ -257,6 +275,30 @@ function Waveform({ planet }: { planet: keyof typeof PLANETS }) {
         />
       ))}
     </View>
+  );
+}
+
+function IconControl({
+  accessibilityLabel,
+  label,
+  onPress,
+  secondaryLabel,
+}: {
+  accessibilityLabel: string;
+  label: string;
+  onPress: () => void;
+  secondaryLabel: string;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={styles.iconControl}
+    >
+      <Text style={styles.iconControlSymbol}>{label}</Text>
+      <Text style={styles.iconControlMeta}>{secondaryLabel}</Text>
+    </Pressable>
   );
 }
 
@@ -284,8 +326,7 @@ function formatTime(valueSec: number) {
   return `${minutes}:${seconds}`;
 }
 
-const heroHeight = space['6xl'] * 2;
-const orbSize = space['6xl'];
+const orbSize = space['6xl'] * 2 + space.xl;
 
 const styles = StyleSheet.create({
   bodyText: {
@@ -295,11 +336,8 @@ const styles = StyleSheet.create({
     fontWeight: type.body.weight,
     lineHeight: type.body.lineHeight,
   },
-  container: {
-    backgroundColor: color.bg.base,
-  },
   content: {
-    gap: space.lg,
+    gap: space.xl,
     paddingHorizontal: space.xl,
   },
   controls: {
@@ -309,7 +347,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   empty: {
-    backgroundColor: color.bg.base,
     flex: 1,
     gap: space.lg,
     justifyContent: 'center',
@@ -325,11 +362,36 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: space.sm,
+    paddingHorizontal: space.sm,
   },
-  hero: {
+  iconControl: {
     alignItems: 'center',
-    borderRadius: radius['2xl'],
-    height: heroHeight,
+    backgroundColor: color.bg.glass,
+    borderColor: color.border.default,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: space['6xl'],
+    justifyContent: 'center',
+    width: space['6xl'],
+  },
+  iconControlMeta: {
+    color: color.text.tertiary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    lineHeight: type.caption.lineHeight,
+    marginTop: -space.xs,
+  },
+  iconControlSymbol: {
+    color: color.text.primary,
+    fontFamily: type.bodyMd.family,
+    fontSize: type.h2.size,
+    fontWeight: type.h2.weight,
+    lineHeight: type.h2.lineHeight,
+  },
+  stage: {
+    alignItems: 'center',
+    aspectRatio: 1,
     justifyContent: 'center',
     overflow: 'hidden',
   },
@@ -362,23 +424,34 @@ const styles = StyleSheet.create({
     borderColor: color.border.default,
     borderWidth: StyleSheet.hairlineWidth,
   },
+  planetAura: {
+    backgroundColor: color.bg.overlay,
+    borderRadius: radius.pill,
+    height: orbSize + space['5xl'],
+    opacity: 0.28,
+    position: 'absolute',
+    width: orbSize + space['5xl'],
+  },
   playButton: {
     alignItems: 'center',
     backgroundColor: color.brand.accent,
+    borderColor: color.border.strong,
+    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.pill,
-    height: space['6xl'],
+    height: space['6xl'] + space.xl,
     justifyContent: 'center',
-    width: space['6xl'],
+    width: space['6xl'] + space.xl,
   },
   playButtonText: {
     color: color.text.inverse,
-    fontFamily: type.bodyMd.family,
-    fontSize: type.bodyMd.size,
-    fontWeight: type.bodyMd.weight,
-    lineHeight: type.bodyMd.lineHeight,
+    fontFamily: type.h2.family,
+    fontSize: type.h2.size,
+    fontWeight: type.h2.weight,
+    lineHeight: type.h2.lineHeight,
   },
   playerPanel: {
-    gap: space.lg,
+    gap: space.xl,
+    paddingVertical: space.sm,
   },
   progressFill: {
     borderRadius: radius.pill,
@@ -388,9 +461,9 @@ const styles = StyleSheet.create({
     top: 0,
   },
   progressTrack: {
-    backgroundColor: color.bg.elevated,
+    backgroundColor: color.bg.glass,
     borderRadius: radius.pill,
-    height: space.sm,
+    height: space.md,
     overflow: 'hidden',
   },
   stack: {
@@ -416,19 +489,19 @@ const styles = StyleSheet.create({
   },
   waveform: {
     alignItems: 'center',
-    backgroundColor: color.bg.surface,
-    borderColor: color.border.subtle,
-    borderRadius: radius.lg,
+    backgroundColor: color.bg.glass,
+    borderColor: color.border.default,
+    borderRadius: radius['2xl'],
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    gap: space.xs,
+    gap: space.sm,
     justifyContent: 'center',
-    paddingHorizontal: space.md,
-    paddingVertical: space.xl,
+    paddingHorizontal: space.lg,
+    paddingVertical: space['2xl'],
   },
   waveformBar: {
     borderRadius: radius.pill,
-    opacity: 0.75,
+    opacity: 0.82,
     width: space.xs,
   },
 });
