@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   base64ToBytes,
+  bytesToHex,
   bytesToBase64,
+  createAthenaPacketReassembler,
+  parseAthenaDataPacket,
   decodeClassicEegPacket,
   decodeUnsigned12BitSamples,
   encodeMuseCommand,
@@ -30,5 +33,47 @@ describe('museProtocol', () => {
 
     expect(samples[0]).toBe(0);
     expect(samples[1]).toBeLessThan(0);
+  });
+
+  it('formats bytes as hex for Muse packet diagnostics', () => {
+    expect(bytesToHex(Uint8Array.from([0, 15, 16, 255]))).toBe('000f10ff');
+  });
+
+  it('reassembles fragmented Athena packets before parsing', () => {
+    const packet = new Uint8Array(42);
+    packet[0] = 42;
+    packet[9] = 0x11;
+    const reassembler = createAthenaPacketReassembler();
+
+    expect(reassembler.append(packet.subarray(0, 20))).toMatchObject({
+      bufferLength: 20,
+      completedPackets: [],
+      droppedBytes: 0,
+    });
+    expect(reassembler.append(packet.subarray(20, 40))).toMatchObject({
+      bufferLength: 40,
+      completedPackets: [],
+      droppedBytes: 0,
+    });
+
+    const result = reassembler.append(packet.subarray(40));
+
+    expect(result.bufferLength).toBe(0);
+    expect(result.completedPackets).toHaveLength(1);
+    expect(parseAthenaDataPacket(result.completedPackets[0])).toMatchObject({
+      eegRows: expect.arrayContaining([expect.arrayContaining([0])]),
+      packetTags: ['0x11'],
+    });
+  });
+
+  it('drops invalid leading bytes while reassembling Athena packets', () => {
+    const packet = new Uint8Array(42);
+    packet[0] = 42;
+    packet[9] = 0x11;
+
+    const result = createAthenaPacketReassembler().append(Uint8Array.from([0, ...packet]));
+
+    expect(result.droppedBytes).toBe(1);
+    expect(result.completedPackets).toHaveLength(1);
   });
 });

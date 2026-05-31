@@ -35,6 +35,12 @@ export interface AthenaParseResult {
   packetTags: string[];
 }
 
+export interface AthenaReassemblyResult {
+  bufferLength: number;
+  completedPackets: Uint8Array[];
+  droppedBytes: number;
+}
+
 export function bytesToBase64(bytes: Uint8Array) {
   let output = '';
 
@@ -76,6 +82,10 @@ export function base64ToBytes(base64: string) {
   }
 
   return Uint8Array.from(bytes);
+}
+
+export function bytesToHex(bytes: Uint8Array) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export function encodeMuseCommand(command: string) {
@@ -239,4 +249,46 @@ export function parseAthenaDataPacket(payload: Uint8Array): AthenaParseResult {
   }
 
   return { eegRows, packetTags };
+}
+
+export function createAthenaPacketReassembler() {
+  let buffer = new Uint8Array(0);
+
+  return {
+    append(chunk: Uint8Array): AthenaReassemblyResult {
+      const merged = new Uint8Array(buffer.length + chunk.length);
+      merged.set(buffer);
+      merged.set(chunk, buffer.length);
+      buffer = merged;
+
+      const completedPackets: Uint8Array[] = [];
+      let droppedBytes = 0;
+
+      while (buffer.length > 0) {
+        const packetLength = buffer[0];
+
+        if (packetLength === 0 || packetLength < athenaPacketHeaderSize) {
+          buffer = buffer.subarray(1);
+          droppedBytes += 1;
+          continue;
+        }
+
+        if (buffer.length < packetLength) {
+          break;
+        }
+
+        completedPackets.push(buffer.subarray(0, packetLength));
+        buffer = buffer.subarray(packetLength);
+      }
+
+      return {
+        bufferLength: buffer.length,
+        completedPackets,
+        droppedBytes,
+      };
+    },
+    reset() {
+      buffer = new Uint8Array(0);
+    },
+  };
 }

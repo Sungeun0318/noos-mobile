@@ -7,7 +7,9 @@ import { calculateBandPowers } from '@/screens/measure/eegBands';
 import {
   athenaDataCharacteristicUuids,
   base64ToBytes,
+  bytesToHex,
   controlCharacteristicUuid,
+  createAthenaPacketReassembler,
   decodeClassicEegPacket,
   decodeControlText,
   eegCharacteristicUuids,
@@ -44,6 +46,7 @@ let connectedDevice: Device | null = null;
 const log = logger.create('museBle');
 const sampleRateHz = 256;
 const streamPreset = 'p1041';
+const requestedMtu = 256;
 
 function getManager() {
   manager ??= new BleManager();
@@ -215,6 +218,10 @@ function logPacketSample(label: string, uuid: string, bytes: Uint8Array, decoded
   });
 }
 
+function shouldLogRawPacket(packetCount: number) {
+  return packetCount <= 12 || packetCount % sampleRateHz === 0;
+}
+
 async function requestBlePermissions(): Promise<BlePermissionStatus> {
   if (Platform.OS !== 'android') {
     return 'granted';
@@ -347,9 +354,20 @@ export const museBle = {
 
     try {
       const connected = await getManager().connectToDevice(deviceId, { timeout: 10000 });
-      const discovered = await connected.discoverAllServicesAndCharacteristics();
+      const mtuDevice =
+        Platform.OS === 'android'
+          ? await connected.requestMTU(requestedMtu).catch((error) => {
+              log.warn('Muse MTU request failed; continuing with default MTU', {
+                message: error instanceof Error ? error.message : String(error),
+                requestedMtu,
+              });
+              return connected;
+            })
+          : connected;
+      const discovered = await mtuDevice.discoverAllServicesAndCharacteristics();
       const withRssi = await discovered.readRSSI().catch(() => discovered);
       connectedDevice = withRssi;
+      log.info('Muse BLE connected', { deviceId: withRssi.id, mtu: withRssi.mtu ?? null });
 
       return {
         deviceId: withRssi.id,
@@ -386,6 +404,7 @@ export const museBle = {
     const safeDurationSec = Math.max(1, Math.round(durationSec));
     const channels = [[], [], [], []] as number[][];
     const subscriptions: Subscription[] = [];
+    const athenaReassemblers = new Map<string, ReturnType<typeof createAthenaPacketReassembler>>();
     let packetCount = 0;
     let controlInfoFragment = '';
 
@@ -431,9 +450,31 @@ export const museBle = {
           const bytes = base64ToBytes(nextCharacteristic.value);
 
           if (decoder === 'athena') {
-            const { eegRows, packetTags } = parseAthenaDataPacket(bytes);
+            const reassembler =
+              athenaReassemblers.get(characteristic.uuid) ?? createAthenaPacketReassembler();
+            athenaReassemblers.set(characteristic.uuid, reassembler);
+            const reassembled = reassembler.append(bytes);
+            const packetResults = reassembled.completedPackets.map((packet) => parseAthenaDataPacket(packet));
+            const eegRows = packetResults.flatMap((result) => result.eegRows);
+            const packetTags = packetResults.flatMap((result) => result.packetTags);
             appendAthenaRows(channels, eegRows);
+            if (shouldLogRawPacket(packetCount)) {
+              log.info('Muse EEG raw notification', {
+                byteLength: bytes.length,
+                bufferLength: reassembled.bufferLength,
+                completedPacketCount: reassembled.completedPackets.length,
+                droppedBytes: reassembled.droppedBytes,
+                firstByte: bytes[0] ?? null,
+                hex: bytesToHex(bytes),
+                label,
+                packetCount,
+                uuid: characteristic.uuid,
+              });
+            }
             logPacketSample(label, characteristic.uuid, bytes, eegRows, packetCount, {
+              bufferLength: reassembled.bufferLength,
+              completedPacketCount: reassembled.completedPackets.length,
+              droppedBytes: reassembled.droppedBytes,
               eegRowCount: eegRows.length,
               packetTags,
             });
