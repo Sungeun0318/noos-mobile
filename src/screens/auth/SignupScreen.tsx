@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { BrandBackdrop } from '@/components/backdrop/BrandBackdrop';
 import { NoosLogo } from '@/components/brand/NoosLogo';
 import { Button, Card, TextInput, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
@@ -78,76 +79,91 @@ export function SignupScreen({ navigation }: SignupProps) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-      <View style={styles.header}>
-        <NoosLogo size={space['4xl']} />
-        <Text style={styles.title}>회원가입</Text>
-        <Text style={styles.description}>게스트 기록을 새 계정으로 이어받을 수 있어요.</Text>
-      </View>
-
-      {notice ? <Toast message={notice} variant={mode === 'authed' ? 'info' : 'warning'} /> : null}
-
-      <View style={styles.form}>
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          error={errors.loginId}
-          label="아이디"
-          maxLength={20}
-          onChangeText={setLoginId}
-          textContentType="username"
-          value={loginId}
-        />
-        <TextInput
-          error={errors.password}
-          label="비밀번호"
-          onChangeText={setPassword}
-          secureTextEntry
-          textContentType="newPassword"
-          value={password}
-        />
-        <TextInput
-          error={errors.passwordConfirm}
-          label="비밀번호 확인"
-          onChangeText={setPasswordConfirm}
-          secureTextEntry
-          textContentType="newPassword"
-          value={passwordConfirm}
-        />
-        <TextInput
-          error={errors.displayName}
-          label="표시 이름"
-          onChangeText={setDisplayName}
-          value={displayName}
-        />
-      </View>
-
-      <Card level={2} padding="lg">
-        <Text style={styles.claimText}>지금까지의 측정/세션 기록이 새 계정으로 이어집니다.</Text>
-      </Card>
-
-      <Pressable accessibilityRole="checkbox" onPress={() => setAgreed((value) => !value)} style={styles.termsRow}>
-        <View style={[styles.checkbox, agreed && styles.checkboxSelected]} />
-        <View style={styles.termsCopy}>
-          <Text style={styles.termsText}>서비스와 개인정보 처리에 동의해요</Text>
-          {errors.agreed ? <Text style={styles.errorText}>{errors.agreed}</Text> : null}
+    <BrandBackdrop>
+      <ScrollView contentContainerStyle={styles.content} style={styles.container}>
+        <View style={styles.header}>
+          <NoosLogo size={logoSize} />
+          <View style={styles.headerCopy}>
+            <Text style={styles.eyebrow}>NOOS Account</Text>
+            <Text style={styles.title}>회원가입</Text>
+            <Text style={styles.description}>게스트 기록을 새 계정으로 이어받을 수 있어요.</Text>
+          </View>
         </View>
-      </Pressable>
 
-      <View style={styles.actions}>
-        <Button
-          fullWidth
-          label="가입하기"
-          loading={submitting}
-          disabled={mode === 'authed'}
-          onPress={() => void submit()}
-          size="lg"
-        />
-        <Button label="이미 계정이 있어요" onPress={goLogin} variant="ghost" />
-      </View>
-    </ScrollView>
+        {notice ? <Toast message={notice} variant={mode === 'authed' ? 'info' : 'warning'} /> : null}
+
+        <Card level={2} padding="xl" variant="glass">
+          <View style={styles.formPanel}>
+            <View style={styles.form}>
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                error={errors.loginId}
+                label="아이디"
+                maxLength={20}
+                onChangeText={setLoginId}
+                textContentType="username"
+                value={loginId}
+              />
+              <TextInput
+                error={errors.password}
+                label="비밀번호"
+                onChangeText={setPassword}
+                secureTextEntry
+                textContentType="newPassword"
+                value={password}
+              />
+              <TextInput
+                error={errors.passwordConfirm}
+                label="비밀번호 확인"
+                onChangeText={setPasswordConfirm}
+                secureTextEntry
+                textContentType="newPassword"
+                value={passwordConfirm}
+              />
+              <TextInput
+                error={errors.displayName}
+                label="표시 이름"
+                onChangeText={setDisplayName}
+                value={displayName}
+              />
+            </View>
+
+            <View style={styles.claimNotice}>
+              <Text style={styles.claimText}>지금까지의 측정/세션 기록이 새 계정으로 이어집니다.</Text>
+            </View>
+
+            <Pressable
+              accessibilityRole="checkbox"
+              onPress={() => setAgreed((value) => !value)}
+              style={styles.termsRow}
+            >
+              <View style={[styles.checkbox, agreed && styles.checkboxSelected]} />
+              <View style={styles.termsCopy}>
+                <Text style={styles.termsText}>서비스와 개인정보 처리에 동의해요</Text>
+                {errors.agreed ? <Text style={styles.errorText}>{errors.agreed}</Text> : null}
+              </View>
+            </Pressable>
+
+            <View style={styles.actions}>
+              <Button
+                fullWidth
+                label="가입하기"
+                loading={submitting}
+                disabled={mode === 'authed'}
+                onPress={() => void submit()}
+                size="lg"
+              />
+              <Button label="이미 계정이 있어요" onPress={goLogin} variant="ghost" />
+            </View>
+          </View>
+        </Card>
+      </ScrollView>
+    </BrandBackdrop>
   );
 }
+
+const logoSize = space['5xl'];
 
 const styles = StyleSheet.create({
   actions: {
@@ -165,6 +181,13 @@ const styles = StyleSheet.create({
     backgroundColor: color.brand.accent,
     borderColor: color.brand.accent,
   },
+  claimNotice: {
+    backgroundColor: color.bg.surfaceAlt,
+    borderColor: color.border.subtle,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: space.lg,
+  },
   claimText: {
     color: color.text.secondary,
     fontFamily: type.body.family,
@@ -173,10 +196,12 @@ const styles = StyleSheet.create({
     lineHeight: type.body.lineHeight,
   },
   container: {
-    backgroundColor: color.bg.base,
+    backgroundColor: 'transparent',
   },
   content: {
-    gap: space.xl,
+    flexGrow: 1,
+    gap: space['2xl'],
+    justifyContent: 'center',
     padding: space.xl,
   },
   description: {
@@ -185,6 +210,7 @@ const styles = StyleSheet.create({
     fontSize: type.body.size,
     fontWeight: type.body.weight,
     lineHeight: type.body.lineHeight,
+    textAlign: 'center',
   },
   errorText: {
     color: color.state.danger,
@@ -196,8 +222,24 @@ const styles = StyleSheet.create({
   form: {
     gap: space.lg,
   },
+  formPanel: {
+    gap: space.xl,
+  },
   header: {
-    gap: space.sm,
+    alignItems: 'center',
+    gap: space.lg,
+  },
+  headerCopy: {
+    alignItems: 'center',
+    gap: space.xs,
+  },
+  eyebrow: {
+    color: color.text.tertiary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    letterSpacing: 0.4,
+    lineHeight: type.caption.lineHeight,
   },
   termsCopy: {
     flex: 1,

@@ -1,7 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { BrandBackdrop } from '@/components/backdrop/BrandBackdrop';
 import { NoosLogo } from '@/components/brand/NoosLogo';
 import { noosTelemetry } from '@/lib/telemetry';
 import { color, space, type } from '@/theme';
@@ -12,30 +12,32 @@ export function SplashScreen() {
   }, []);
 
   return (
-    <LinearGradient
-      colors={[color.bg.base, color.bg.surfaceAlt, color.bg.base]}
-      locations={[0, 0.52, 1]}
-      style={styles.container}
-    >
+    <BrandBackdrop style={styles.container}>
       <View style={styles.center}>
         <NoosLogo size={logoSize} />
-        <Text style={styles.logoText}>NOOS</Text>
-        <Text style={styles.tagline}>EEG 기반 컨디션 조절</Text>
+        <View style={styles.lockup}>
+          <Text style={styles.logoText}>NOOS</Text>
+          <Text style={styles.tagline}>EEG 기반 컨디션 조절</Text>
+        </View>
       </View>
-    </LinearGradient>
+    </BrandBackdrop>
   );
 }
 
-const logoSize = space['5xl'] + space['2xl'];
+const logoSize = space['6xl'] + space.xl;
 const styles = StyleSheet.create({
   center: {
     alignItems: 'center',
-    gap: space.lg,
+    gap: space.xl,
   },
   container: {
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
+  },
+  lockup: {
+    alignItems: 'center',
+    gap: space.xs,
   },
   logoText: {
     color: color.brand.noos,

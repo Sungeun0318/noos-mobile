@@ -3,14 +3,15 @@ import { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BrandBackdrop } from '@/components/backdrop/BrandBackdrop';
 import { NoosLogo } from '@/components/brand/NoosLogo';
-import { Button } from '@/components/ui';
+import { Button, Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import { getPostBootRoute } from '@/navigation/postBootRoute';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { color, radius, space, type } from '@/theme';
+import { color, space, type } from '@/theme';
 
 type OnboardingProps = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 type AuthRoute = 'Auth/Login' | 'Auth/Signup';
@@ -52,50 +53,55 @@ export function OnboardingScreen({ navigation }: OnboardingProps) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.hero}>
-          <NoosLogo size={space['5xl']} />
-          <View style={styles.copy}>
-            <Text style={styles.title}>NOOS</Text>
-            <Text style={styles.tagline}>오늘의 컨디션에 맞는 행성 사운드</Text>
+    <BrandBackdrop>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.hero}>
+            <NoosLogo size={logoSize} />
+            <View style={styles.copy}>
+              <Text style={styles.title}>NOOS</Text>
+              <Text style={styles.tagline}>오늘의 컨디션에 맞는 행성 사운드</Text>
+            </View>
+          </View>
+
+          <Card level={2} padding="xl" variant="glass">
+            <View style={styles.panel}>
+              <Text style={styles.panelTitle}>기록을 이어가려면 계정을 연결하세요</Text>
+              <Text style={styles.description}>
+                가입하지 않아도 바로 둘러볼 수 있고, 나중에 계정으로 기록을 이어받을 수 있어요.
+              </Text>
+            </View>
+          </Card>
+
+          <View style={styles.actions}>
+            <Button fullWidth label="회원가입" onPress={() => openAuth('Auth/Signup')} size="lg" />
+            <Button
+              fullWidth
+              label="로그인"
+              onPress={() => openAuth('Auth/Login')}
+              size="lg"
+              variant="secondary"
+            />
+            <Button label="게스트로 둘러보기" onPress={continueAsGuest} variant="ghost" />
           </View>
         </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>기록을 이어가려면 계정을 연결하세요</Text>
-          <Text style={styles.description}>
-            가입하지 않아도 바로 둘러볼 수 있고, 나중에 계정으로 기록을 이어받을 수 있어요.
-          </Text>
-        </View>
-
-        <View style={styles.actions}>
-          <Button fullWidth label="회원가입" onPress={() => openAuth('Auth/Signup')} size="lg" />
-          <Button
-            fullWidth
-            label="로그인"
-            onPress={() => openAuth('Auth/Login')}
-            size="lg"
-            variant="secondary"
-          />
-          <Button label="게스트로 둘러보기" onPress={continueAsGuest} variant="ghost" />
-        </View>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </BrandBackdrop>
   );
 }
+
+const logoSize = space['6xl'] + space.sm;
 
 const styles = StyleSheet.create({
   actions: {
     gap: space.sm,
   },
   container: {
-    backgroundColor: color.bg.base,
     flex: 1,
   },
   content: {
     flex: 1,
-    gap: space['2xl'],
+    gap: space['3xl'],
     justifyContent: 'center',
     padding: space.xl,
   },
@@ -113,16 +119,11 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
-    gap: space.xl,
+    gap: space['2xl'],
   },
   panel: {
     alignItems: 'center',
-    backgroundColor: color.bg.surface,
-    borderColor: color.border.subtle,
-    borderRadius: radius.xl,
-    borderWidth: StyleSheet.hairlineWidth,
     gap: space.sm,
-    padding: space.xl,
   },
   panelTitle: {
     color: color.text.primary,
