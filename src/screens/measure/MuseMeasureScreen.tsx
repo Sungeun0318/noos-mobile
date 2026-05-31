@@ -3,16 +3,23 @@ import { useNavigation } from '@react-navigation/native';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { Button, Card, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
+import { useReducedMotion } from '@/lib/useReducedMotion';
 import type { MeasureStackParamList } from '@/navigation/MeasureStack';
 import { measureMock } from '@/screens/measure/measureMock';
 import { museGateway } from '@/screens/measure/museGateway';
 import { useDeviceStore } from '@/stores/deviceStore';
 import { useStateStore } from '@/stores/stateStore';
-import { color, radius, space, type } from '@/theme';
+import { color, motion, radius, space, type } from '@/theme';
 
 type MuseMeasureNavigation = NativeStackNavigationProp<MeasureStackParamList, 'Measure/MuseMeasure'>;
 type MeasurePhase = 'warmup' | 'recording' | 'finalizing';
@@ -33,6 +40,8 @@ export function MuseMeasureScreen() {
   const [phase, setPhase] = useState<MeasurePhase>('warmup');
   const [error, setError] = useState<string | null>(null);
   const cancelledRef = useRef(false);
+  const reduceMotion = useReducedMotion();
+  const ringPulse = useSharedValue(0);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -95,6 +104,31 @@ export function MuseMeasureScreen() {
 
   const progress = Math.max(0, Math.min(elapsedSec / measureDurationSec, 1));
   const remainingSec = Math.max(0, measureDurationSec - elapsedSec);
+  const shouldPulse = !error && phase !== 'finalizing';
+
+  useEffect(() => {
+    if (!shouldPulse || reduceMotion) {
+      ringPulse.value = withTiming(0, {
+        duration: motion.duration.fast,
+        easing: motion.easing.decel,
+      });
+      return;
+    }
+
+    ringPulse.value = withRepeat(
+      withTiming(1, {
+        duration: motion.duration.pulse,
+        easing: motion.easing.standard,
+      }),
+      -1,
+      true
+    );
+  }, [reduceMotion, ringPulse, shouldPulse]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: 0.18 + ringPulse.value * 0.2,
+    transform: [{ scale: 1 + ringPulse.value * 0.16 }],
+  }));
 
   return (
     <ScreenBackdrop planet="earth">
@@ -109,8 +143,8 @@ export function MuseMeasureScreen() {
         <Card level={2} padding="xl" variant="hero">
           <View style={styles.measureStack}>
             <View style={styles.timerStage}>
+              <Animated.View pointerEvents="none" style={[styles.signalPulse, pulseStyle]} />
               <View style={styles.signalRing}>
-                {/* TODO FE-XX: animate this signal ring and band preview with reanimated once approved. */}
                 <Text style={styles.timerText}>{remainingSec}</Text>
                 <Text style={styles.timerUnit}>sec</Text>
               </View>
@@ -233,8 +267,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: space['6xl'] * 2,
   },
+  signalPulse: {
+    backgroundColor: color.brand.accent,
+    borderRadius: radius.pill,
+    height: space['6xl'] * 2,
+    position: 'absolute',
+    width: space['6xl'] * 2,
+  },
   timerStage: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: space.lg,
   },
   timerText: {

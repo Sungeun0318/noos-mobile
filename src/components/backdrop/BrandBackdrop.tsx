@@ -1,11 +1,54 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, View, type ViewProps } from 'react-native';
+import { useEffect } from 'react';
+import { StyleSheet, type ViewProps } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 
-import { color, radius, space } from '@/theme';
+import { useReducedMotion } from '@/lib/useReducedMotion';
+import { color, motion, radius, space } from '@/theme';
 
 type BrandBackdropProps = ViewProps;
 
 export function BrandBackdrop({ children, style, ...viewProps }: BrandBackdropProps) {
+  const reduceMotion = useReducedMotion();
+  const drift = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      drift.value = withTiming(0, { duration: motion.duration.fast });
+      return;
+    }
+
+    drift.value = withRepeat(
+      withTiming(1, {
+        duration: motion.duration.ambient,
+        easing: motion.easing.standard,
+      }),
+      -1,
+      true
+    );
+  }, [drift, reduceMotion]);
+
+  const topGlowStyle = useAnimatedStyle(() => ({
+    opacity: reduceMotion ? 0.05 : 0.05 + drift.value * 0.04,
+    transform: [
+      { translateX: drift.value * space['5xl'] },
+      { translateY: drift.value * space['3xl'] },
+    ],
+  }));
+
+  const bottomGlowStyle = useAnimatedStyle(() => ({
+    opacity: reduceMotion ? 0.1 : 0.1 + (1 - drift.value) * 0.06,
+    transform: [
+      { translateX: -drift.value * space['5xl'] },
+      { translateY: -drift.value * space['3xl'] },
+    ],
+  }));
+
   return (
     <LinearGradient
       {...viewProps}
@@ -13,8 +56,8 @@ export function BrandBackdrop({ children, style, ...viewProps }: BrandBackdropPr
       locations={brandLocations}
       style={[styles.container, style]}
     >
-      <View pointerEvents="none" style={styles.glowTop} />
-      <View pointerEvents="none" style={styles.glowBottom} />
+      <Animated.View pointerEvents="none" style={[styles.glowTop, topGlowStyle]} />
+      <Animated.View pointerEvents="none" style={[styles.glowBottom, bottomGlowStyle]} />
       {children}
     </LinearGradient>
   );

@@ -10,6 +10,7 @@ export default defineConfig({
       '@': resolve(rootDir, 'src'),
       'react-native': resolve(rootDir, 'tests/mocks/react-native.ts'),
       'react-native-mmkv': resolve(rootDir, 'tests/mocks/react-native-mmkv.ts'),
+      'react-native-reanimated': resolve(rootDir, 'tests/mocks/react-native-reanimated.ts'),
     },
   },
   test: {
