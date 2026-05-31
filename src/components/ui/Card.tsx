@@ -1,3 +1,4 @@
+import { BlurView } from 'expo-blur';
 import { Pressable, StyleSheet, View, type PressableProps, type ViewProps } from 'react-native';
 
 import { color, elevation, radius, space, type PlanetId, PLANET_COLORS } from '@/theme';
@@ -24,6 +25,7 @@ export function Card({
 }: CardProps) {
   const resolvedRadius = cardRadius ?? (variant === 'hero' ? '2xl' : 'lg');
   const resolvedPadding = padding ?? (variant === 'compact' ? 'md' : 'lg');
+  const isGlass = variant === 'glass';
   const content = (
     <View
       {...viewProps}
@@ -38,6 +40,12 @@ export function Card({
         style,
       ]}
     >
+      {isGlass ? (
+        <>
+          <BlurView intensity={34} style={styles.absoluteFill} tint="dark" />
+          <View pointerEvents="none" style={styles.glassOverlay} />
+        </>
+      ) : null}
       {planetTint ? (
         <View
           style={[styles.tint, { backgroundColor: PLANET_COLORS[planetTint].secondary }]}
@@ -59,8 +67,23 @@ export function Card({
 }
 
 const styles = StyleSheet.create({
+  absoluteFill: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
   card: {
     overflow: 'hidden',
+  },
+  glassOverlay: {
+    backgroundColor: color.bg.glass,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   pressed: {
     opacity: 0.85,
@@ -81,7 +104,7 @@ const variantStyles = StyleSheet.create({
   },
   default: {},
   glass: {
-    backgroundColor: color.bg.glass,
+    backgroundColor: 'transparent',
     borderColor: color.border.default,
   },
   hero: {
