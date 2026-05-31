@@ -7,6 +7,7 @@ import { createSession } from '@/api/sessionGateway';
 import type { EnqueueSessionRequest } from '@/api/types';
 import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Card, Toast } from '@/components/ui';
+import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { noosTelemetry } from '@/lib/telemetry';
 import { getMeasurementCtaState } from '@/screens/journey/planetSelectMeasurement';
 import { canAddPendingSession, useSessionStore } from '@/stores/sessionStore';
@@ -117,20 +118,21 @@ export function PlanetSelectScreen({ navigation }: { navigation: JourneyNavigati
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingBottom: insets.bottom + space['6xl'],
-          paddingTop: insets.top + space.xl,
-        },
-      ]}
-      style={styles.container}
-    >
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>Journey</Text>
-        <Text style={styles.title}>오늘의 행성을 고르세요</Text>
-      </View>
+    <ScreenBackdrop planet={selectedPlanet ?? recommendedPlanet ?? undefined}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: insets.bottom + space['6xl'],
+            paddingTop: insets.top + space.xl,
+          },
+        ]}
+        style={styles.container}
+      >
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>Journey</Text>
+          <Text style={styles.title}>오늘의 행성을 고르세요</Text>
+        </View>
 
       {toast ? <Toast message={toast} variant="warning" /> : null}
       <MeasurementSourceCard
@@ -156,14 +158,15 @@ export function PlanetSelectScreen({ navigation }: { navigation: JourneyNavigati
       <DurationPicker durationMin={durationMin} onChange={setDurationMin} />
       {durationMin === 60 ? <Toast message="긴 곡은 최대 1시간까지 걸릴 수 있어요." variant="info" /> : null}
       <LightingToggle />
-      <Button
-        fullWidth
-        label="이 세션 만들기"
-        loading={submitting}
-        onPress={startGeneration}
-        size="lg"
-      />
-    </ScrollView>
+        <Button
+          fullWidth
+          label="이 세션 만들기"
+          loading={submitting}
+          onPress={startGeneration}
+          size="lg"
+        />
+      </ScrollView>
+    </ScreenBackdrop>
   );
 }
 
@@ -181,7 +184,7 @@ function MeasurementSourceCard({
   const cta = getMeasurementCtaState({ hasMeasurement, measuredAt, stateLabel });
 
   return (
-    <Card level={2} padding="lg">
+    <Card level={2} padding="lg" variant="glass">
       <View style={styles.measurementRow}>
         <View style={styles.cardStack}>
           <Text style={styles.cardTitleSmall}>{cta.title}</Text>
@@ -206,7 +209,13 @@ function RecommendedHero({
 
   return (
     <Pressable accessibilityRole="button" onPress={onSelect} style={({ pressed }) => pressed && styles.pressed}>
-      <Card level={1} padding="xl" planetTint={planet} style={isSelected ? styles.selectedCard : undefined}>
+      <Card
+        level={1}
+        padding="xl"
+        planetTint={planet}
+        style={isSelected ? styles.selectedCard : undefined}
+        variant="hero"
+      >
         <View style={styles.recommendRow}>
           <View style={styles.cardStack}>
             <Text style={styles.label}>추천 행성</Text>
@@ -299,7 +308,7 @@ function DurationPicker({
 
 function LightingToggle() {
   return (
-    <Card level={2} padding="lg">
+    <Card level={2} padding="lg" variant="glass">
       <View style={styles.lightingRow}>
         <View style={styles.cardStack}>
           <Text style={styles.cardTitleSmall}>조명</Text>
@@ -351,7 +360,7 @@ const styles = StyleSheet.create({
     lineHeight: type.bodyMd.lineHeight,
   },
   container: {
-    backgroundColor: color.bg.base,
+    backgroundColor: 'transparent',
   },
   content: {
     gap: space.lg,

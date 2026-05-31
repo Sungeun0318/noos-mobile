@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View, type PressableProps, type ViewProps } from 'react-native';
 
-import { elevation, radius, space, type PlanetId, PLANET_COLORS } from '@/theme';
+import { color, elevation, radius, space, type PlanetId, PLANET_COLORS } from '@/theme';
 
 interface CardProps extends ViewProps {
   level?: 1 | 2 | 3;
@@ -8,27 +8,32 @@ interface CardProps extends ViewProps {
   cardRadius?: keyof typeof radius;
   planetTint?: PlanetId;
   onPress?: PressableProps['onPress'];
+  variant?: 'default' | 'glass' | 'hero' | 'compact';
 }
 
 export function Card({
   children,
   level = 1,
-  padding = 'lg',
-  cardRadius = 'lg',
+  padding,
+  cardRadius,
   planetTint,
   onPress,
+  variant = 'default',
   style,
   ...viewProps
 }: CardProps) {
+  const resolvedRadius = cardRadius ?? (variant === 'hero' ? '2xl' : 'lg');
+  const resolvedPadding = padding ?? (variant === 'compact' ? 'md' : 'lg');
   const content = (
     <View
       {...viewProps}
       style={[
         styles.card,
         elevation[level],
+        variantStyles[variant],
         {
-          borderRadius: radius[cardRadius],
-          padding: space[padding],
+          borderRadius: radius[resolvedRadius],
+          padding: space[resolvedPadding],
         },
         style,
       ]}
@@ -66,5 +71,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     width: 4,
+  },
+});
+
+const variantStyles = StyleSheet.create({
+  compact: {
+    backgroundColor: color.bg.surface,
+    borderColor: color.border.subtle,
+  },
+  default: {},
+  glass: {
+    backgroundColor: color.bg.glass,
+    borderColor: color.border.default,
+  },
+  hero: {
+    backgroundColor: color.bg.hero,
+    borderColor: color.border.strong,
   },
 });

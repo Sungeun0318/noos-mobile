@@ -4,8 +4,10 @@ import { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EmptyState } from '@/components/EmptyState';
 import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Card } from '@/components/ui';
+import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { HistoryStackParamList } from '@/navigation/HistoryStack';
 import { listHistory } from '@/screens/history/historyGateway';
@@ -42,55 +44,66 @@ export function HistoryListScreen({ navigation }: HistoryListProps) {
 
   if (!simulationMode && historyQuery.isLoading) {
     return (
-      <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
-        <Text style={styles.title}>기록을 불러오는 중</Text>
-        <Text style={styles.bodyText}>서버에서 완료한 세션을 확인하고 있어.</Text>
-      </View>
+      <ScreenBackdrop>
+        <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
+          <EmptyState
+            body="서버에서 완료한 세션을 확인하고 있어."
+            planet="saturn"
+            title="기록을 불러오는 중"
+          />
+        </View>
+      </ScreenBackdrop>
     );
   }
 
   if (sessions.length === 0) {
     return (
-      <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
-        <Text style={styles.title}>아직 세션이 없어요</Text>
-        <Text style={styles.bodyText}>첫 세션을 만들고 나면 완료 기록이 여기에 쌓여.</Text>
-        <Button label="첫 세션 시작" onPress={goPlanetSelect} />
-      </View>
+      <ScreenBackdrop planet="neptune">
+        <View style={[styles.empty, { paddingTop: insets.top + space['3xl'] }]}>
+          <EmptyState
+            action={<Button label="첫 세션 시작" onPress={goPlanetSelect} />}
+            body="첫 세션을 만들고 나면 완료 기록이 여기에 쌓여."
+            title="아직 세션이 없어요"
+          />
+        </View>
+      </ScreenBackdrop>
     );
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingBottom: insets.bottom + space['6xl'],
-          paddingTop: insets.top + space.xl,
-        },
-      ]}
-      style={styles.container}
-    >
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>History</Text>
-        <Text style={styles.title}>완료한 세션</Text>
-      </View>
-      {!simulationMode && historyQuery.isError ? (
-        <Text style={styles.metaText}>서버 기록을 불러오지 못했어. 잠시 후 다시 시도해줘.</Text>
-      ) : null}
-      {sessions.map((session) => (
-        <HistoryCard
-          key={session.sessionId}
-          session={session}
-          onPress={() => {
-            noosTelemetry.track('history_card_tap', {
-              planet: session.planet,
-              sessionId: session.sessionId,
-            });
-            navigation.navigate('History/Detail', { sessionId: session.sessionId });
-          }}
-        />
-      ))}
-    </ScrollView>
+    <ScreenBackdrop planet={sessions[0]?.planet}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: insets.bottom + space['6xl'],
+            paddingTop: insets.top + space.xl,
+          },
+        ]}
+        style={styles.container}
+      >
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>History</Text>
+          <Text style={styles.title}>완료한 세션</Text>
+        </View>
+        {!simulationMode && historyQuery.isError ? (
+          <Text style={styles.metaText}>서버 기록을 불러오지 못했어. 잠시 후 다시 시도해줘.</Text>
+        ) : null}
+        {sessions.map((session) => (
+          <HistoryCard
+            key={session.sessionId}
+            session={session}
+            onPress={() => {
+              noosTelemetry.track('history_card_tap', {
+                planet: session.planet,
+                sessionId: session.sessionId,
+              });
+              navigation.navigate('History/Detail', { sessionId: session.sessionId });
+            }}
+          />
+        ))}
+      </ScrollView>
+    </ScreenBackdrop>
   );
 }
 
@@ -99,7 +112,7 @@ function HistoryCard({ session, onPress }: { session: HistorySession; onPress: (
 
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
-      <Card level={1} padding="lg" planetTint={session.planet}>
+      <Card level={1} padding="lg" planetTint={session.planet} variant="glass">
         <View style={styles.cardRow}>
           <PlanetImage planet={session.planet} round size={orbSize} style={styles.planetImage} />
           <View style={styles.cardCopy}>
@@ -166,14 +179,13 @@ const styles = StyleSheet.create({
     lineHeight: type.bodyMd.lineHeight,
   },
   container: {
-    backgroundColor: color.bg.base,
+    backgroundColor: 'transparent',
   },
   content: {
     gap: space.lg,
     paddingHorizontal: space.xl,
   },
   empty: {
-    backgroundColor: color.bg.base,
     flex: 1,
     gap: space.lg,
     justifyContent: 'center',

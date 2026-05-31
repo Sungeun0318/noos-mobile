@@ -2,6 +2,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { MeasureStackParamList } from '@/navigation/MeasureStack';
@@ -30,30 +31,32 @@ export function MeasureHomeScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>Measure</Text>
-        <Text style={styles.title}>측정 방식을 선택해</Text>
-        <Text style={styles.description}>Muse 시뮬레이션 또는 수동 설문으로 상태를 만들 수 있어.</Text>
-      </View>
+    <ScreenBackdrop planet="earth">
+      <ScrollView contentContainerStyle={styles.content} style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>Measure</Text>
+          <Text style={styles.title}>측정 방식을 선택해</Text>
+          <Text style={styles.description}>Muse 시뮬레이션 또는 수동 설문으로 상태를 만들 수 있어.</Text>
+        </View>
 
-      <DeviceStatusInline status={muse.status} signalQuality={muse.signalQuality} />
+        <DeviceStatusInline status={muse.status} signalQuality={muse.signalQuality} />
 
-      <View style={styles.stack}>
-        <MeasureMethodCard
-          description="가상 Muse-SIM으로 EEG 밴드를 수집하는 흐름을 확인해요."
-          label="Muse로 측정"
-          onPress={() => selectMethod('muse')}
-          tag="시뮬레이션"
-        />
-        <MeasureMethodCard
-          description="네 가지 설문만으로 빠르게 현재 상태를 기록해요."
-          label="수동 설문"
-          onPress={() => selectMethod('manual')}
-          tag="기본"
-        />
-      </View>
-    </ScrollView>
+        <View style={styles.stack}>
+          <MeasureMethodCard
+            description="가상 Muse-SIM으로 EEG 밴드를 수집하는 흐름을 확인해요."
+            label="Muse로 측정"
+            onPress={() => selectMethod('muse')}
+            tag="시뮬레이션"
+          />
+          <MeasureMethodCard
+            description="네 가지 설문만으로 빠르게 현재 상태를 기록해요."
+            label="수동 설문"
+            onPress={() => selectMethod('manual')}
+            tag="기본"
+          />
+        </View>
+      </ScrollView>
+    </ScreenBackdrop>
   );
 }
 
@@ -87,7 +90,7 @@ function MeasureMethodCard({
   onPress: () => void;
 }) {
   return (
-    <Card level={1} onPress={onPress} padding="xl">
+    <Card level={1} onPress={onPress} padding="xl" variant="glass">
       <View style={styles.cardStack}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>{label}</Text>
@@ -117,7 +120,7 @@ const styles = StyleSheet.create({
     lineHeight: type.h2.lineHeight,
   },
   container: {
-    backgroundColor: color.bg.base,
+    backgroundColor: 'transparent',
   },
   content: {
     gap: space.xl,
@@ -162,7 +165,7 @@ const styles = StyleSheet.create({
   },
   statusRow: {
     alignItems: 'center',
-    backgroundColor: color.bg.surface,
+    backgroundColor: color.bg.glass,
     borderColor: color.border.subtle,
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
