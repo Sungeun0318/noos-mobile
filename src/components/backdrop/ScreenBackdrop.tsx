@@ -19,6 +19,7 @@ export function ScreenBackdrop({ children, planet, style, ...viewProps }: Screen
       locations={locations}
       style={[styles.container, style]}
     >
+      {/* TODO FE-XX: add a subtle grain texture asset over this static gradient. */}
       <View pointerEvents="none" style={styles.veil} />
       {children}
     </LinearGradient>
