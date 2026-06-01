@@ -21,7 +21,7 @@ type PlanetSelectNavigation = NativeStackNavigationProp<JourneyStackParamList, '
   getParent: () => { navigate: (screen: 'Measure' | 'Today') => void } | undefined;
 };
 
-const durationOptions = [5, 10, 30, 60] as const;
+const durationOptions = [2, 10, 30, 60] as const;
 type DurationMin = (typeof durationOptions)[number];
 
 const planetIds = Object.keys(PLANETS) as PlanetId[];
