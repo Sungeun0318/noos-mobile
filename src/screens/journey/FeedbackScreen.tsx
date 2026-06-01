@@ -87,7 +87,7 @@ export function FeedbackScreen({ navigation, route }: FeedbackProps) {
       finish({ focusResult: payload.focusResult, musicFit: payload.musicFit });
     } catch {
       // TODO FE-XX: queue failed feedback locally and retry on next app boot.
-      setNotice('저장은 됐고 나중에 동기화할게요');
+      setNotice('저장해 두었고 나중에 동기화할게요');
       setTimeout(
         () => finish({ focusResult: payload.focusResult, musicFit: payload.musicFit }),
         motion.duration.slower,
@@ -126,8 +126,8 @@ export function FeedbackScreen({ navigation, route }: FeedbackProps) {
       {notice ? <Toast message={notice} variant="info" /> : null}
       <View style={styles.header}>
         <Text style={styles.eyebrow}>Feedback</Text>
-        <Text style={styles.title}>이번 세션은 어땠어?</Text>
-        <Text style={styles.description}>짧게 남겨두면 다음 추천을 더 잘 맞출 수 있어.</Text>
+        <Text style={styles.title}>이번 세션은 어땠나요?</Text>
+        <Text style={styles.description}>짧게 남겨두면 다음 추천을 더 잘 맞출 수 있어요.</Text>
       </View>
 
       <Card level={1} padding="lg">
