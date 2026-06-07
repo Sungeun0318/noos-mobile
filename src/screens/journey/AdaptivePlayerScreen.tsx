@@ -3,7 +3,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { getAdaptiveSession } from '@/api/adaptiveGateway';
 import { resolveAudioSource } from '@/audio/resolveAudioSource';
@@ -13,15 +15,33 @@ import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
+import {
+  buildAdaptiveGraphData,
+  type AdaptiveGraphData,
+  type BandKey,
+  type BandSeries,
+  type TimelinePoint,
+} from '@/screens/journey/adaptiveGraphData';
 import { buildAdaptivePlayerViewModel } from '@/screens/journey/adaptivePlayerState';
 import { useAdaptiveSessionStore } from '@/stores/adaptiveSessionStore';
-import { color, PLANET_COLORS, radius, space, type, type PlanetId } from '@/theme';
+import { color, motion, PLANET_COLORS, radius, space, type, type PlanetId } from '@/theme';
 
 type AdaptivePlayerProps = NativeStackScreenProps<JourneyStackParamList, 'Journey/AdaptivePlayer'>;
 type PlayState = 'loading' | 'playing' | 'paused' | 'error';
 
 const pollMs = 5_000;
 const orbSize = space['6xl'] * 2;
+const chartWidth = space['6xl'] * 4 + space['3xl'];
+const chartHeight = space['6xl'] * 2;
+const chartPadding = space.lg;
+
+const bandColors: Record<BandKey, string> = {
+  alpha: PLANET_COLORS.neptune.secondary,
+  beta: PLANET_COLORS.mars.secondary,
+  delta: color.text.tertiary,
+  gamma: color.brand.accent,
+  theta: color.state.info,
+};
 
 export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps) {
   const insets = useSafeAreaInsets();
@@ -30,8 +50,14 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   const lastAction = useAdaptiveSessionStore((state) => state.lastAction);
   const lastSignalScore = useAdaptiveSessionStore((state) => state.lastSignalScore);
   const nextGenStatus = useAdaptiveSessionStore((state) => state.nextGenStatus);
+  const recentWindows = useAdaptiveSessionStore((state) => state.recentWindows);
   const wearStatus = useAdaptiveSessionStore((state) => state.wearStatus);
   const applyGetResponse = useAdaptiveSessionStore((state) => state.applyGetResponse);
+  const graphData = useMemo(() => buildAdaptiveGraphData(recentWindows), [recentWindows]);
+  const graphOpacity = useSharedValue(1);
+  const graphAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: graphOpacity.value,
+  }));
   const viewModel = useMemo(
     () =>
       buildAdaptivePlayerViewModel({
@@ -67,6 +93,11 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   const durationSec = status.duration || viewModel.durationSec;
   const positionSec = status.currentTime || 0;
   const progress = durationSec > 0 ? Math.min(positionSec / durationSec, 1) : 0;
+
+  useEffect(() => {
+    graphOpacity.value = space.sm / space.md;
+    graphOpacity.value = withTiming(1, { duration: motion.duration.slow });
+  }, [graphData.timeline.length, graphOpacity]);
 
   useEffect(() => {
     void setAudioModeAsync({
@@ -254,10 +285,7 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
           </Text>
         </View>
 
-        <View style={styles.deferredPanel}>
-          <Text style={styles.label}>실시간 EEG 그래프</Text>
-          <Text style={styles.body}>FE-A4에서 밴드 트렌드와 파형을 이 영역에 연결합니다.</Text>
-        </View>
+        <AdaptiveEegDashboard animatedStyle={graphAnimatedStyle} data={graphData} />
       </ScrollView>
     </ScreenBackdrop>
   );
@@ -301,6 +329,183 @@ function ProgressBar({ planet, progress }: { planet: PlanetId; progress: number 
   );
 }
 
+function AdaptiveEegDashboard({
+  animatedStyle,
+  data,
+}: {
+  animatedStyle: ReturnType<typeof useAnimatedStyle>;
+  data: AdaptiveGraphData;
+}) {
+  const deltaText = data.deltas.length > 0
+    ? data.deltas.map((delta) => delta.text).join(' · ')
+    : '상태 변화가 쌓이면 여기에 표시됩니다.';
+
+  return (
+    <Animated.View style={[styles.graphPanel, animatedStyle]}>
+      <View style={styles.graphHeader}>
+        <View>
+          <Text style={styles.label}>실시간 EEG</Text>
+          <Text style={styles.segmentTitle}>5밴드 트렌드</Text>
+        </View>
+        <Text style={styles.windowCount}>{data.timeline.length} windows</Text>
+      </View>
+
+      {data.hasData ? (
+        <>
+          <BandTrendChart series={data.series} />
+          <View style={styles.bandLegend}>
+            {data.series.map((series) => (
+              <View key={series.key} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: bandColors[series.key] }]} />
+                <Text style={styles.legendText}>{series.label}</Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : (
+        <View style={styles.graphEmpty}>
+          <Text style={styles.body}>아직 제출된 EEG 윈도우가 없어요.</Text>
+          <Text style={styles.body}>캡처가 끝나면 밴드 흐름이 표시됩니다.</Text>
+        </View>
+      )}
+
+      <View style={styles.deltaPanel}>
+        <Text style={styles.label}>최근 5분 상태 변화</Text>
+        <Text style={styles.deltaText}>{deltaText}</Text>
+      </View>
+
+      <Timeline points={data.timeline} />
+    </Animated.View>
+  );
+}
+
+function BandTrendChart({ series }: { series: BandSeries[] }) {
+  return (
+    <View style={styles.chartFrame}>
+      <Svg height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%">
+        <Path
+          d={`M ${chartPadding} ${chartPadding} H ${chartWidth - chartPadding} V ${chartHeight - chartPadding} H ${chartPadding} Z`}
+          fill={color.bg.overlay}
+          opacity={space.xs / space.md}
+        />
+        {series.map((band) => {
+          const path = buildSeriesPath(band);
+
+          return (
+            <Path
+              d={path}
+              fill="none"
+              key={band.key}
+              opacity={band.points.length > 0 ? 1 : 0}
+              stroke={bandColors[band.key]}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={space.xxs}
+            />
+          );
+        })}
+        {series.map((band) => {
+          const point = latestPoint(band);
+
+          if (!point) {
+            return null;
+          }
+
+          return (
+            <Circle
+              cx={point.x}
+              cy={point.y}
+              fill={bandColors[band.key]}
+              key={`${band.key}-point`}
+              r={space.xs}
+            />
+          );
+        })}
+      </Svg>
+    </View>
+  );
+}
+
+function Timeline({ points }: { points: TimelinePoint[] }) {
+  if (points.length === 0) {
+    return (
+      <View style={styles.timelinePanel}>
+        <Text style={styles.label}>변화 타임라인</Text>
+        <Text style={styles.body}>윈도우가 쌓이면 dominant band 흐름을 보여줍니다.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.timelinePanel}>
+      <Text style={styles.label}>변화 타임라인</Text>
+      <View style={styles.timelineRow}>
+        {points.map((point) => (
+          <View key={point.id} style={styles.timelineItem}>
+            <View style={[styles.timelineDot, !point.signalOk && styles.timelineDotMuted]} />
+            <Text style={styles.timelineBand}>{shortBand(point.dominantBand)}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function buildSeriesPath(series: BandSeries) {
+  return series.points
+    .map((point, index) => {
+      const x = pointX(index, series.points.length);
+      const y = pointY(point.normalized);
+
+      return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+    })
+    .join(' ');
+}
+
+function latestPoint(series: BandSeries) {
+  const point = series.points[series.points.length - 1];
+
+  if (!point) {
+    return null;
+  }
+
+  return {
+    x: pointX(series.points.length - 1, series.points.length),
+    y: pointY(point.normalized),
+  };
+}
+
+function pointX(index: number, total: number) {
+  if (total <= 1) {
+    return chartWidth - chartPadding;
+  }
+
+  return chartPadding + (index / (total - 1)) * (chartWidth - chartPadding * 2);
+}
+
+function pointY(normalized: number) {
+  const clamped = Math.max(0, Math.min(normalized, 1));
+
+  return chartPadding + (1 - clamped) * (chartHeight - chartPadding * 2);
+}
+
+function shortBand(band: string | null) {
+  switch (band?.toLowerCase()) {
+    case 'alpha':
+      return 'α';
+    case 'beta':
+      return 'β';
+    case 'theta':
+      return 'θ';
+    case 'delta':
+      return 'δ';
+    case 'gamma':
+      return 'γ';
+    default:
+      return '·';
+  }
+}
+
 function formatTime(valueSec: number) {
   const totalSec = Math.max(0, Math.floor(valueSec));
   const minutes = Math.floor(totalSec / 60);
@@ -325,12 +530,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.md,
   },
+  bandLegend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.md,
+  },
+  chartFrame: {
+    backgroundColor: color.bg.surfaceAlt,
+    borderColor: color.border.subtle,
+    borderRadius: radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  deltaPanel: {
+    backgroundColor: color.bg.surfaceAlt,
+    borderColor: color.border.subtle,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: space.xs,
+    padding: space.md,
+  },
+  deltaText: {
+    color: color.text.primary,
+    fontFamily: type.h3.family,
+    fontSize: type.h3.size,
+    fontWeight: type.h3.weight,
+    lineHeight: type.h3.lineHeight,
+  },
   deferredPanel: {
     backgroundColor: color.bg.glass,
     borderColor: color.border.default,
     borderRadius: radius['2xl'],
     borderWidth: StyleSheet.hairlineWidth,
     gap: space.sm,
+    padding: space.lg,
+  },
+  graphEmpty: {
+    backgroundColor: color.bg.surfaceAlt,
+    borderColor: color.border.subtle,
+    borderRadius: radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: space.xs,
+    padding: space.lg,
+  },
+  graphHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: space.md,
+    justifyContent: 'space-between',
+  },
+  graphPanel: {
+    backgroundColor: color.bg.glass,
+    borderColor: color.border.default,
+    borderRadius: radius['2xl'],
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: space.lg,
     padding: space.lg,
   },
   empty: {
@@ -362,6 +616,23 @@ const styles = StyleSheet.create({
     fontWeight: type.caption.weight,
     letterSpacing: 0.4,
     lineHeight: type.caption.lineHeight,
+  },
+  legendDot: {
+    borderRadius: radius.pill,
+    height: space.sm,
+    width: space.sm,
+  },
+  legendItem: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space.xs,
+  },
+  legendText: {
+    color: color.text.secondary,
+    fontFamily: type.small.family,
+    fontSize: type.small.size,
+    fontWeight: type.small.weight,
+    lineHeight: type.small.lineHeight,
   },
   pillRow: {
     alignItems: 'center',
@@ -478,11 +749,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  timelineBand: {
+    color: color.text.tertiary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    lineHeight: type.caption.lineHeight,
+  },
+  timelineDot: {
+    backgroundColor: color.brand.accent,
+    borderRadius: radius.pill,
+    height: space.sm,
+    width: space.sm,
+  },
+  timelineDotMuted: {
+    backgroundColor: color.text.disabled,
+  },
+  timelineItem: {
+    alignItems: 'center',
+    gap: space.xs,
+  },
+  timelinePanel: {
+    gap: space.sm,
+  },
+  timelineRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.md,
+  },
   title: {
     color: color.text.primary,
     fontFamily: type.h1.family,
     fontSize: type.h1.size,
     fontWeight: type.h1.weight,
     lineHeight: type.h1.lineHeight,
+  },
+  windowCount: {
+    color: color.text.tertiary,
+    fontFamily: type.tabular.family,
+    fontSize: type.tabular.size,
+    fontWeight: type.tabular.weight,
+    lineHeight: type.tabular.lineHeight,
   },
 });
