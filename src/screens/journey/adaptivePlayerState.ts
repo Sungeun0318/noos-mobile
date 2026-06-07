@@ -85,16 +85,16 @@ export function getNextGenState(status: AdaptiveNextGenStatus): {
 } {
   switch (status) {
     case 'pending':
-      return { label: '다음 세그먼트 대기 중', tone: 'working' };
+      return { label: '다음 음악 대기 중', tone: 'working' };
     case 'generating':
-      return { label: '다음 세그먼트 생성 중', tone: 'working' };
+      return { label: '다음 음악 생성 중', tone: 'working' };
     case 'ready':
-      return { label: '다음 세그먼트 준비됨', tone: 'ready' };
+      return { label: '다음 음악 준비됨 · 현재 곡이 끝나면 자동 전환', tone: 'ready' };
     case 'failed':
-      return { label: '다음 세그먼트 실패', tone: 'failed' };
+      return { label: '다음 음악 실패', tone: 'failed' };
     case 'idle':
     default:
-      return { label: '다음 세그먼트 없음', tone: 'idle' };
+      return { label: '다음 음악 없음', tone: 'idle' };
   }
 }
 

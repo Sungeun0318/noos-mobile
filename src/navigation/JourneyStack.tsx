@@ -1,14 +1,17 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { AdaptivePlayerScreen } from '@/screens/journey/AdaptivePlayerScreen';
+import { AdaptiveSessionSetupScreen } from '@/screens/journey/AdaptiveSessionSetupScreen';
 import { FeedbackScreen } from '@/screens/journey/FeedbackScreen';
 import { PlanetSelectScreen } from '@/screens/journey/PlanetSelectScreen';
 import { PlayerScreen } from '@/screens/journey/PlayerScreen';
 import { SessionPendingScreen } from '@/screens/journey/SessionPendingScreen';
+import type { PlanetId } from '@/theme';
 import { color } from '@/theme';
 
 export type JourneyStackParamList = {
   'Journey/PlanetSelect': undefined;
+  'Journey/AdaptiveSetup': { recommendedPlanet?: PlanetId } | undefined;
   'Journey/PendingSession': { sessionId: string };
   'Journey/Player': { sessionId: string };
   'Journey/AdaptivePlayer': { sessionId: string };
@@ -31,6 +34,11 @@ export function JourneyStack() {
         component={PlanetSelectScreen}
         name="Journey/PlanetSelect"
         options={{ title: 'Planet Select' }}
+      />
+      <Stack.Screen
+        component={AdaptiveSessionSetupScreen}
+        name="Journey/AdaptiveSetup"
+        options={{ title: 'Adaptive Setup' }}
       />
       <Stack.Screen
         component={SessionPendingScreen}
