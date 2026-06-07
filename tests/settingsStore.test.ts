@@ -7,6 +7,7 @@ import { __getMMKVStore } from './mocks/react-native-mmkv';
 describe('settingsStore', () => {
   beforeEach(() => {
     useSettingsStore.setState({
+      adaptiveBackendReal: false,
       backendBaseUrl: '',
       hasOnboarded: false,
       lightingEnabled: false,
@@ -40,6 +41,20 @@ describe('settingsStore', () => {
 
   it('keeps lighting disabled by default', () => {
     expect(useSettingsStore.getState().lightingEnabled).toBe(false);
+  });
+
+  it('updates adaptive backend real override', () => {
+    useSettingsStore.getState().setAdaptiveBackendReal(true);
+
+    expect(useSettingsStore.getState().adaptiveBackendReal).toBe(true);
+  });
+
+  it('persists adaptive backend real override in settings storage', () => {
+    useSettingsStore.getState().setAdaptiveBackendReal(true);
+
+    const persisted = __getMMKVStore('noos.settings.v1').get('noos.settings.v1');
+
+    expect(persisted).toContain('"adaptiveBackendReal":true');
   });
 
   it('normalizes backend URL helper', () => {

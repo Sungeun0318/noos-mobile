@@ -21,7 +21,12 @@ export type AdaptiveGatewayMode = 'mock' | 'real';
 
 export function currentAdaptiveGatewayMode(
   simulationMode = useSettingsStore.getState().simulationMode,
+  adaptiveBackendReal = useSettingsStore.getState().adaptiveBackendReal,
 ): AdaptiveGatewayMode {
+  if (adaptiveBackendReal) {
+    return 'real';
+  }
+
   return simulationMode ? 'mock' : 'real';
 }
 

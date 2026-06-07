@@ -90,6 +90,7 @@ function useSafeStoreDump() {
         },
       },
       settings: {
+        adaptiveBackendReal: settings.adaptiveBackendReal,
         backendBaseUrl: settings.backendBaseUrl,
         hasOnboarded: settings.hasOnboarded,
         locale: settings.locale,
@@ -105,6 +106,8 @@ function useSafeStoreDump() {
 }
 
 export function DebugScreen() {
+  const adaptiveBackendReal = useSettingsStore((state) => state.adaptiveBackendReal);
+  const setAdaptiveBackendReal = useSettingsStore((state) => state.setAdaptiveBackendReal);
   const simulationMode = useSettingsStore((state) => state.simulationMode);
   const setSimulationMode = useSettingsStore((state) => state.setSimulationMode);
   const storeDump = useSafeStoreDump();
@@ -188,6 +191,11 @@ export function DebugScreen() {
             label="Simulation mode"
             right={<Switch onValueChange={setSimulationMode} value={simulationMode} />}
             value={simulationMode ? 'mock' : 'real'}
+          />
+          <Row
+            label="적응 백엔드 실서버 사용"
+            right={<Switch onValueChange={setAdaptiveBackendReal} value={adaptiveBackendReal} />}
+            value={adaptiveBackendReal ? 'adaptive real' : 'simulation 설정 따름'}
           />
         </Section>
 

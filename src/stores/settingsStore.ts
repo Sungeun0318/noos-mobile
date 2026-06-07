@@ -3,12 +3,14 @@ import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 
 export interface SettingsState {
+  adaptiveBackendReal: boolean;
   backendBaseUrl: string;
   hasOnboarded: boolean;
   lightingEnabled: boolean;
   simulationMode: boolean;
   locale: 'ko' | 'en';
   notificationsEnabled: boolean;
+  setAdaptiveBackendReal(value: boolean): void;
   setBackendBaseUrl(url: string): void;
   setHasOnboarded(value: boolean): void;
   setLightingEnabled(value: boolean): void;
@@ -32,12 +34,14 @@ export function normalizeBackendUrl(url: string) {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
+      adaptiveBackendReal: false,
       backendBaseUrl: process.env.EXPO_PUBLIC_DEFAULT_BACKEND_URL ?? '',
       hasOnboarded: false,
       lightingEnabled: false,
       simulationMode: false,
       locale: 'ko',
       notificationsEnabled: false,
+      setAdaptiveBackendReal: (value) => set({ adaptiveBackendReal: value }),
       setBackendBaseUrl: (url) => set({ backendBaseUrl: normalizeBackendUrl(url) }),
       setHasOnboarded: (value) => set({ hasOnboarded: value }),
       setLightingEnabled: (value) => set({ lightingEnabled: value }),
