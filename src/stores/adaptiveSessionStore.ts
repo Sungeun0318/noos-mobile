@@ -42,6 +42,7 @@ interface AdaptiveSessionStoreShape {
     submittedWindow?: AdaptiveWindowSubmitRequest,
   ): void;
   setCaptureTick(tick: { signalScore: number; sampleBufferLen: number }): void;
+  setCurrentSegmentIndex(index: number): void;
   setNextWindowIndex(index: number): void;
   setWearStatus(status: AdaptiveWearStatus): void;
   clear(): void;
@@ -181,6 +182,10 @@ function mergeSegment(segments: AdaptiveSegmentView[], segment: AdaptiveSegmentV
   );
 }
 
+function nextSegmentAfter(segments: AdaptiveSegmentView[], index: number) {
+  return segments.find((segment) => segment.index > index) ?? null;
+}
+
 function withDerived(session: AdaptiveSessionResponse | null, segments = session?.segments ?? []) {
   return {
     currentSegmentIndex: deriveCurrentSegmentIndex(session),
@@ -248,6 +253,24 @@ export const useAdaptiveSessionStore = create<AdaptiveSessionStoreShape>()((set)
     set({
       lastSampleBufferLen: tick.sampleBufferLen,
       lastSignalScore: tick.signalScore,
+    }),
+  setCurrentSegmentIndex: (index) =>
+    set((state) => {
+      const currentSegment = state.segments.find((segment) => segment.index === index) ?? null;
+      const session = state.session && currentSegment
+        ? {
+            ...state.session,
+            currentPlanet: currentSegment.planet,
+            currentSegment,
+            nextSegment: nextSegmentAfter(state.segments, index),
+          }
+        : state.session;
+
+      return {
+        ...withDerived(session, state.segments),
+        currentSegmentIndex: index,
+        session,
+      };
     }),
   setNextWindowIndex: (index) => set({ nextWindowIndex: Math.max(0, index) }),
   setWearStatus: (status) => set({ wearStatus: status }),
