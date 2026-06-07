@@ -1,12 +1,13 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus, type AudioSource } from 'expo-audio';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 
+import type { AdaptiveSegmentView } from '@/api/adaptiveTypes';
 import { getAdaptiveSession, pauseAdaptiveSession, resumeAdaptiveSession } from '@/api/adaptiveGateway';
 import { resolveAudioSource } from '@/audio/resolveAudioSource';
 import { createAdaptiveCaptureLoop, type AdaptiveCaptureLoop } from '@/adaptive/adaptiveCaptureEngine';
@@ -29,12 +30,21 @@ import {
   type TimelinePoint,
 } from '@/screens/journey/adaptiveGraphData';
 import { buildAdaptivePlayerViewModel } from '@/screens/journey/adaptivePlayerState';
+import { buildAdaptivePlaybackPlan } from '@/screens/journey/adaptivePlaybackPlan';
 import { useAdaptiveSessionStore } from '@/stores/adaptiveSessionStore';
 import { useDeviceStore } from '@/stores/deviceStore';
 import { color, motion, PLANET_COLORS, radius, space, type, type PlanetId } from '@/theme';
 
 type AdaptivePlayerProps = NativeStackScreenProps<JourneyStackParamList, 'Journey/AdaptivePlayer'>;
 type PlayState = 'loading' | 'playing' | 'paused' | 'error';
+interface AdaptiveAudioPlayer {
+  loop: boolean;
+  volume: number;
+  pause(): void;
+  play(): void;
+  replace(source: AudioSource): void;
+  seekTo(seconds: number): Promise<void>;
+}
 
 const pollMs = 5_000;
 const orbSize = space['6xl'] * 2;
@@ -42,6 +52,9 @@ const chartWidth = space['6xl'] * 4 + space['3xl'];
 const chartHeight = space['6xl'] * 2;
 const chartPadding = space.lg;
 const wearMonitorMs = 1_000;
+const crossfadeLeadSec = 3;
+const crossfadeMs = motion.duration.pulse;
+const volumeRampSteps = 12;
 
 const bandColors: Record<BandKey, string> = {
   alpha: PLANET_COLORS.neptune.secondary,
@@ -61,6 +74,8 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   const recentWindows = useAdaptiveSessionStore((state) => state.recentWindows);
   const wearStatus = useAdaptiveSessionStore((state) => state.wearStatus);
   const applyGetResponse = useAdaptiveSessionStore((state) => state.applyGetResponse);
+  const currentSegmentIndex = useAdaptiveSessionStore((state) => state.currentSegmentIndex);
+  const setCurrentSegmentIndex = useAdaptiveSessionStore((state) => state.setCurrentSegmentIndex);
   const graphData = useMemo(() => buildAdaptiveGraphData(recentWindows), [recentWindows]);
   const graphOpacity = useSharedValue(1);
   const graphAnimatedStyle = useAnimatedStyle(() => ({
@@ -80,31 +95,39 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
       }),
     [lastAction, lastSignalScore, nextGenStatus, segments, session, wearStatus],
   );
-  const audioSource = useMemo(
+  const playbackPlan = useMemo(
     () =>
-      resolveAudioSource(
-        viewModel.canPlayCurrent
-          ? {
-              audio: {
-                audioId: viewModel.audioId ?? '',
-                durationSec: viewModel.durationSec,
-              },
-            }
-          : null,
-      ),
-    [viewModel.audioId, viewModel.canPlayCurrent, viewModel.durationSec],
+      buildAdaptivePlaybackPlan({
+        currentSegmentIndex,
+        lastAction,
+        segments,
+      }),
+    [currentSegmentIndex, lastAction, segments],
   );
-  const player = useAudioPlayer(audioSource, { updateInterval: 500 });
+  const canPlayCurrent = playbackPlan.currentSegment?.status === 'ready' && Boolean(playbackPlan.currentSegment.audioId);
+  const currentAudioSource = useMemo(
+    () => resolveAdaptiveSegmentAudioSource(playbackPlan.currentSegment),
+    [playbackPlan.currentSegment],
+  );
+  const nextAudioSource = useMemo(
+    () => resolveAdaptiveSegmentAudioSource(playbackPlan.nextSegment),
+    [playbackPlan.nextSegment],
+  );
+  const player = useAudioPlayer(currentAudioSource, { updateInterval: 500 });
+  const nextPlayer = useAudioPlayer(nextAudioSource, { updateInterval: 500 });
   const status = useAudioPlayerStatus(player);
+  const nextStatus = useAudioPlayerStatus(nextPlayer);
   const captureLoopRef = useRef<AdaptiveCaptureLoop | null>(null);
   const screenActiveRef = useRef(false);
   const autoPausedRef = useRef(false);
   const deviceHadConnectionRef = useRef(false);
   const deviceWearStateRef = useRef<WearDetectorState>(createInitialWearDetectorState());
   const startedAudioIdRef = useRef<string | null>(null);
+  const transitionSegmentIdRef = useRef<number | null>(null);
   const [playState, setPlayState] = useState<PlayState>('paused');
   const [error, setError] = useState<string | null>(null);
-  const durationSec = status.duration || viewModel.durationSec;
+  const [isCrossfading, setIsCrossfading] = useState(false);
+  const durationSec = status.duration || playbackPlan.currentSegment?.durationSec || viewModel.durationSec;
   const positionSec = status.currentTime || 0;
   const progress = durationSec > 0 ? Math.min(positionSec / durationSec, 1) : 0;
 
@@ -120,6 +143,23 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
       shouldPlayInBackground: true,
     });
   }, []);
+
+  useEffect(() => {
+    player.loop = playbackPlan.decision !== 'crossfade-next';
+  }, [playbackPlan.decision, player]);
+
+  useEffect(() => {
+    nextPlayer.loop = true;
+    nextPlayer.volume = 0;
+  }, [nextPlayer, playbackPlan.nextSegment?.audioId]);
+
+  useEffect(() => {
+    if (isCrossfading || playbackPlan.decision === 'crossfade-next') {
+      return;
+    }
+
+    return rampVolume(player, playbackPlan.targetVolume, motion.duration.slow);
+  }, [isCrossfading, playbackPlan.decision, playbackPlan.targetVolume, player]);
 
   const refreshSession = useCallback(async () => {
     const response = await getAdaptiveSession(route.params.sessionId);
@@ -250,7 +290,9 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   }, [player, refreshSession, route.params.sessionId, startCaptureLoop, stopCaptureLoop, wearStatus]);
 
   useEffect(() => {
-    if (!viewModel.canPlayCurrent) {
+    const currentAudioId = playbackPlan.currentSegment?.audioId ?? null;
+
+    if (!canPlayCurrent) {
       setPlayState('paused');
       startedAudioIdRef.current = null;
       return;
@@ -260,20 +302,99 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
       setPlayState('error');
       setError('세그먼트 재생에 실패했어요.');
       noosTelemetry.track('adaptive_player_error', {
-        audioId: viewModel.audioId,
+        audioId: currentAudioId,
         sessionId: route.params.sessionId,
       });
       return;
     }
 
-    if (status.isLoaded && startedAudioIdRef.current !== viewModel.audioId) {
-      startedAudioIdRef.current = viewModel.audioId;
+    if (status.isLoaded && startedAudioIdRef.current !== currentAudioId) {
+      startedAudioIdRef.current = currentAudioId;
       setPlayState('paused');
     }
-  }, [route.params.sessionId, status.error, status.isLoaded, viewModel.audioId, viewModel.canPlayCurrent]);
+  }, [canPlayCurrent, playbackPlan.currentSegment?.audioId, route.params.sessionId, status.error, status.isLoaded]);
+
+  useEffect(() => {
+    if (!status.didJustFinish || !status.isLoaded || playbackPlan.decision === 'crossfade-next') {
+      return;
+    }
+
+    void player.seekTo(0).then(() => {
+      player.play();
+    });
+  }, [playbackPlan.decision, player, status.didJustFinish, status.isLoaded]);
+
+  useEffect(() => {
+    const nextSegment = playbackPlan.nextSegment;
+    const remainingSec = durationSec - positionSec;
+
+    if (
+      playbackPlan.decision !== 'crossfade-next' ||
+      !nextSegment ||
+      !nextSegment.audioId ||
+      !status.playing ||
+      !status.isLoaded ||
+      !nextStatus.isLoaded ||
+      isCrossfading ||
+      transitionSegmentIdRef.current === nextSegment.segmentId
+    ) {
+      return;
+    }
+
+    if (durationSec > 0 && remainingSec > crossfadeLeadSec && !status.didJustFinish) {
+      return;
+    }
+
+    transitionSegmentIdRef.current = nextSegment.segmentId;
+    setIsCrossfading(true);
+    noosTelemetry.track('adaptive_crossfade_start', {
+      nextSegmentId: nextSegment.segmentId,
+      sessionId: route.params.sessionId,
+    });
+
+    void crossfadeToNext({
+      currentPlayer: player,
+      nextPlayer,
+      nextSegmentIndex: nextSegment.index,
+      nextSource: nextAudioSource,
+      setCurrentSegmentIndex,
+    })
+      .then(() => {
+        setPlayState('playing');
+        noosTelemetry.track('adaptive_crossfade_complete', {
+          nextSegmentId: nextSegment.segmentId,
+          sessionId: route.params.sessionId,
+        });
+      })
+      .catch(() => {
+        transitionSegmentIdRef.current = null;
+        setError('다음 세그먼트 전환에 실패해 현재 음악을 이어 재생합니다.');
+        player.loop = true;
+        player.volume = 1;
+        player.play();
+      })
+      .finally(() => {
+        setIsCrossfading(false);
+      });
+  }, [
+    durationSec,
+    isCrossfading,
+    nextAudioSource,
+    nextPlayer,
+    nextStatus.isLoaded,
+    playbackPlan.decision,
+    playbackPlan.nextSegment,
+    player,
+    positionSec,
+    route.params.sessionId,
+    setCurrentSegmentIndex,
+    status.didJustFinish,
+    status.isLoaded,
+    status.playing,
+  ]);
 
   function togglePlayback() {
-    if (!viewModel.canPlayCurrent || !status.isLoaded || playState === 'error') {
+    if (!canPlayCurrent || !status.isLoaded || playState === 'error') {
       return;
     }
 
@@ -290,7 +411,7 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
     player.play();
     setPlayState('playing');
     noosTelemetry.track('adaptive_player_play', {
-      audioId: viewModel.audioId,
+      audioId: playbackPlan.currentSegment?.audioId ?? null,
       sessionId: route.params.sessionId,
     });
   }
@@ -346,9 +467,15 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
               <Text style={styles.label}>현재 세그먼트</Text>
               <Text style={styles.segmentTitle}>{viewModel.currentSegmentLabel}</Text>
             </View>
-            <StatusPill label={viewModel.nextGenLabel} tone={viewModel.nextGenTone} />
+            <StatusPill
+              label={isCrossfading ? '다음 세그먼트 전환 중' : viewModel.nextGenLabel}
+              tone={isCrossfading ? 'working' : viewModel.nextGenTone}
+            />
           </View>
           {viewModel.actionLabel ? <Text style={styles.body}>{viewModel.actionLabel}</Text> : null}
+          {playbackPlan.decision === 'loop-extend' ? (
+            <Text style={styles.body}>다음 곡이 준비될 때까지 현재 음악을 끊김 없이 이어 재생합니다.</Text>
+          ) : null}
           <ProgressBar progress={progress} planet={viewModel.planet} />
           <View style={styles.timeRow}>
             <Text style={styles.time}>{formatTime(positionSec)}</Text>
@@ -360,21 +487,21 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
           <Pressable
             accessibilityLabel={status.playing ? '일시정지' : '재생'}
             accessibilityRole="button"
-            disabled={!viewModel.canPlayCurrent || playState === 'error'}
+            disabled={!canPlayCurrent || playState === 'error'}
             onPress={togglePlayback}
             style={[
               styles.playButton,
-              (!viewModel.canPlayCurrent || playState === 'error') && styles.playButtonDisabled,
+              (!canPlayCurrent || playState === 'error') && styles.playButtonDisabled,
             ]}
           >
-            {!viewModel.canPlayCurrent ? (
+            {!canPlayCurrent ? (
               <ActivityIndicator color={color.text.inverse} />
             ) : (
               <Text style={styles.playButtonText}>{status.playing ? 'Ⅱ' : '▶'}</Text>
             )}
           </Pressable>
           <Text style={styles.body}>
-            {viewModel.canPlayCurrent ? '현재 준비된 세그먼트를 재생할 수 있어요.' : '첫 세그먼트가 준비되면 재생할 수 있어요.'}
+            {canPlayCurrent ? '현재 준비된 세그먼트를 재생할 수 있어요.' : '첫 세그먼트가 준비되면 재생할 수 있어요.'}
           </Text>
         </View>
 
@@ -431,6 +558,99 @@ function ProgressBar({ planet, progress }: { planet: PlanetId; progress: number 
       />
     </View>
   );
+}
+
+function resolveAdaptiveSegmentAudioSource(segment: AdaptiveSegmentView | null): AudioSource {
+  if (segment?.status === 'ready' && segment.audioId) {
+    return resolveAudioSource({
+      audio: {
+        audioId: segment.audioId,
+        durationSec: segment.durationSec,
+      },
+    });
+  }
+
+  return resolveAudioSource(null);
+}
+
+function rampVolume(player: AdaptiveAudioPlayer, targetVolume: number, durationMs: number) {
+  const fromVolume = player.volume;
+  const stepMs = Math.max(durationMs / volumeRampSteps, 1);
+  let step = 0;
+  const interval = setInterval(() => {
+    step += 1;
+    const ratio = Math.min(step / volumeRampSteps, 1);
+    player.volume = fromVolume + (targetVolume - fromVolume) * ratio;
+
+    if (ratio >= 1) {
+      clearInterval(interval);
+    }
+  }, stepMs);
+
+  return () => {
+    clearInterval(interval);
+  };
+}
+
+function waitForVolumeRamp(
+  currentPlayer: AdaptiveAudioPlayer,
+  nextPlayer: AdaptiveAudioPlayer,
+  durationMs: number,
+) {
+  return new Promise<void>((resolve) => {
+    const currentFrom = currentPlayer.volume;
+    let step = 0;
+    const stepMs = Math.max(durationMs / volumeRampSteps, 1);
+    const interval = setInterval(() => {
+      step += 1;
+      const ratio = Math.min(step / volumeRampSteps, 1);
+      currentPlayer.volume = currentFrom * (1 - ratio);
+      nextPlayer.volume = ratio;
+
+      if (ratio >= 1) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, stepMs);
+  });
+}
+
+async function safeSeekToStart(player: AdaptiveAudioPlayer) {
+  try {
+    await player.seekTo(0);
+  } catch {
+    // Seeking failure should not stop playback fallback.
+  }
+}
+
+async function crossfadeToNext({
+  currentPlayer,
+  nextPlayer,
+  nextSegmentIndex,
+  nextSource,
+  setCurrentSegmentIndex,
+}: {
+  currentPlayer: AdaptiveAudioPlayer;
+  nextPlayer: AdaptiveAudioPlayer;
+  nextSegmentIndex: number;
+  nextSource: AudioSource;
+  setCurrentSegmentIndex(index: number): void;
+}) {
+  nextPlayer.volume = 0;
+  nextPlayer.loop = true;
+  await safeSeekToStart(nextPlayer);
+  nextPlayer.play();
+
+  await waitForVolumeRamp(currentPlayer, nextPlayer, crossfadeMs);
+
+  currentPlayer.pause();
+  currentPlayer.replace(nextSource);
+  currentPlayer.volume = 1;
+  currentPlayer.loop = true;
+  currentPlayer.play();
+  nextPlayer.pause();
+  await safeSeekToStart(nextPlayer);
+  setCurrentSegmentIndex(nextSegmentIndex);
 }
 
 function AdaptiveEegDashboard({
