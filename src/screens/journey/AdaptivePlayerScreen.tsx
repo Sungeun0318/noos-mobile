@@ -8,7 +8,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import type { AdaptiveSegmentView } from '@/api/adaptiveTypes';
-import { getAdaptiveSession, pauseAdaptiveSession, resumeAdaptiveSession } from '@/api/adaptiveGateway';
+import {
+  endAdaptiveSession,
+  getAdaptiveSession,
+  pauseAdaptiveSession,
+  resumeAdaptiveSession,
+} from '@/api/adaptiveGateway';
 import { resolveAudioSource } from '@/audio/resolveAudioSource';
 import { createAdaptiveCaptureLoop, type AdaptiveCaptureLoop } from '@/adaptive/adaptiveCaptureEngine';
 import { applyAdaptiveWearTransition } from '@/adaptive/adaptiveWearEffects';
@@ -127,6 +132,7 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   const [playState, setPlayState] = useState<PlayState>('paused');
   const [error, setError] = useState<string | null>(null);
   const [isCrossfading, setIsCrossfading] = useState(false);
+  const [ending, setEnding] = useState(false);
   const durationSec = status.duration || playbackPlan.currentSegment?.durationSec || viewModel.durationSec;
   const positionSec = status.currentTime || 0;
   const progress = durationSec > 0 ? Math.min(positionSec / durationSec, 1) : 0;
@@ -416,6 +422,28 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
     });
   }
 
+  async function endSession() {
+    if (ending) {
+      return;
+    }
+
+    setEnding(true);
+    try {
+      stopCaptureLoop();
+      player.pause();
+      setPlayState('paused');
+      await endAdaptiveSession(route.params.sessionId);
+      noosTelemetry.track('adaptive_player_end_manual', {
+        positionSec: Math.round(positionSec),
+        sessionId: route.params.sessionId,
+      });
+      navigation.navigate('Journey/AdaptiveFeedback', { sessionId: route.params.sessionId });
+    } catch {
+      setError('세션을 종료하지 못했어요. 다시 시도해 주세요.');
+      setEnding(false);
+    }
+  }
+
   function goJourney() {
     navigation.navigate('Journey/PlanetSelect');
   }
@@ -507,6 +535,14 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
             {canPlayCurrent ? '현재 준비된 세그먼트를 재생할 수 있어요.' : '첫 세그먼트가 준비되면 재생할 수 있어요.'}
           </Text>
         </View>
+
+        <Button
+          fullWidth
+          label="세션 종료"
+          loading={ending}
+          onPress={() => void endSession()}
+          variant="destructive"
+        />
 
         <AdaptiveEegDashboard animatedStyle={graphAnimatedStyle} data={graphData} />
       </ScrollView>

@@ -3,6 +3,8 @@ import type {
   AdaptiveSessionStartRequest,
   AdaptiveSessionStartResponse,
   AdaptiveSessionStatusResponse,
+  AdaptiveFeedbackRequest,
+  AdaptiveFeedbackResponse,
   AdaptiveWindowSubmitRequest,
   AdaptiveWindowSubmitResponse,
   PauseAdaptiveSessionRequest,
@@ -13,6 +15,7 @@ import {
   pauseAdaptiveSessionMock,
   resumeAdaptiveSessionMock,
   startAdaptiveSessionMock,
+  submitAdaptiveFeedbackMock,
   submitAdaptiveWindowMock,
 } from '@/api/adaptiveMock';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -108,4 +111,19 @@ export async function endAdaptiveSession(
   const { noosApi } = await import('@/api/noosApi');
 
   return noosApi.adaptive.end(sessionId);
+}
+
+export async function submitAdaptiveFeedback(
+  sessionId: string,
+  payload: AdaptiveFeedbackRequest,
+  mode: AdaptiveGatewayMode = currentAdaptiveGatewayMode(),
+): Promise<AdaptiveFeedbackResponse> {
+  if (mode === 'mock') {
+    return submitAdaptiveFeedbackMock(sessionId, payload);
+  }
+
+  const { noosApi } = await import('@/api/noosApi');
+
+  // TODO BE-D2: wire once POST /api/mobile/adaptive/sessions/{id}/feedback exists.
+  return noosApi.adaptive.feedback(sessionId, payload);
 }

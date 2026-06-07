@@ -1,6 +1,8 @@
 import type {
   AdaptiveAction,
   AdaptiveEegWindowView,
+  AdaptiveFeedbackRequest,
+  AdaptiveFeedbackResponse,
   AdaptiveSegmentView,
   AdaptiveSessionResponse,
   AdaptiveSessionStartRequest,
@@ -322,4 +324,17 @@ export async function endAdaptiveSessionMock(id: string): Promise<AdaptiveSessio
   };
 
   return makeStatusResponse(record.session);
+}
+
+export async function submitAdaptiveFeedbackMock(
+  id: string,
+  payload: AdaptiveFeedbackRequest,
+): Promise<AdaptiveFeedbackResponse> {
+  getRecord(id);
+  void payload;
+
+  return {
+    ok: true,
+    savedAt: iso(),
+  };
 }
