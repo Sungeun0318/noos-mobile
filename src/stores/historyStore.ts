@@ -18,6 +18,7 @@ export interface HistoryAudioSummary {
 }
 
 export interface HistorySession {
+  kind?: 'single' | 'adaptive';
   sessionId: string;
   planet: PlanetId;
   durationSec: number;

@@ -133,6 +133,7 @@ describe('adaptiveFeedbackPayload', () => {
       completedAt: '2026-06-01T00:12:00Z',
       durationSec: 240,
       feedbackSummary: null,
+      kind: 'adaptive',
       planet: 'mars',
       sessionId: 'adaptive_1',
       stateLabel: '다음 구간으로 전환',

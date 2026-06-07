@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AdaptiveFeedbackScreen } from '@/screens/journey/AdaptiveFeedbackScreen';
 import { AdaptivePlayerScreen } from '@/screens/journey/AdaptivePlayerScreen';
 import { AdaptiveSessionSetupScreen } from '@/screens/journey/AdaptiveSessionSetupScreen';
+import { AdaptiveSummaryScreen } from '@/screens/journey/AdaptiveSummaryScreen';
 import { FeedbackScreen } from '@/screens/journey/FeedbackScreen';
 import { PlanetSelectScreen } from '@/screens/journey/PlanetSelectScreen';
 import { PlayerScreen } from '@/screens/journey/PlayerScreen';
@@ -17,6 +18,7 @@ export type JourneyStackParamList = {
   'Journey/Player': { sessionId: string };
   'Journey/AdaptivePlayer': { sessionId: string };
   'Journey/AdaptiveFeedback': { sessionId: string };
+  'Journey/AdaptiveSummary': { sessionId: string };
   'Journey/Feedback': { sessionId: string };
 };
 
@@ -61,6 +63,11 @@ export function JourneyStack() {
         component={AdaptiveFeedbackScreen}
         name="Journey/AdaptiveFeedback"
         options={{ title: '적응형 피드백' }}
+      />
+      <Stack.Screen
+        component={AdaptiveSummaryScreen}
+        name="Journey/AdaptiveSummary"
+        options={{ title: '적응형 요약' }}
       />
       <Stack.Screen
         component={FeedbackScreen}
