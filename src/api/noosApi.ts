@@ -1,5 +1,14 @@
 import { request, requestWithBaseUrl } from './client';
 import type {
+  AdaptiveSessionResponse,
+  AdaptiveSessionStartRequest,
+  AdaptiveSessionStartResponse,
+  AdaptiveSessionStatusResponse,
+  AdaptiveWindowSubmitRequest,
+  AdaptiveWindowSubmitResponse,
+  PauseAdaptiveSessionRequest,
+} from './adaptiveTypes';
+import type {
   AuthResponse,
   EnqueueSessionRequest,
   EnqueueSessionResponse,
@@ -47,6 +56,32 @@ export const noosApi = {
 
       return request<SessionListResponse>(`/api/mobile/sessions${queryString ? `?${queryString}` : ''}`);
     },
+  },
+  adaptive: {
+    start: (body: AdaptiveSessionStartRequest) =>
+      request<AdaptiveSessionStartResponse>('/api/mobile/adaptive/sessions/start', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    get: (id: string) => request<AdaptiveSessionResponse>(`/api/mobile/adaptive/sessions/${id}`),
+    submitWindow: (id: string, body: AdaptiveWindowSubmitRequest) =>
+      request<AdaptiveWindowSubmitResponse>(`/api/mobile/adaptive/sessions/${id}/windows`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    pause: (id: string, body: PauseAdaptiveSessionRequest = {}) =>
+      request<AdaptiveSessionStatusResponse>(`/api/mobile/adaptive/sessions/${id}/pause`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    resume: (id: string) =>
+      request<AdaptiveSessionStatusResponse>(`/api/mobile/adaptive/sessions/${id}/resume`, {
+        method: 'POST',
+      }),
+    end: (id: string) =>
+      request<AdaptiveSessionStatusResponse>(`/api/mobile/adaptive/sessions/${id}/end`, {
+        method: 'POST',
+      }),
   },
   auth: {
     signup: (body: {
