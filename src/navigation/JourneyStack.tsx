@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { AdaptiveFeedbackScreen } from '@/screens/journey/AdaptiveFeedbackScreen';
 import { AdaptivePlayerScreen } from '@/screens/journey/AdaptivePlayerScreen';
 import { AdaptiveSessionSetupScreen } from '@/screens/journey/AdaptiveSessionSetupScreen';
 import { FeedbackScreen } from '@/screens/journey/FeedbackScreen';
@@ -15,6 +16,7 @@ export type JourneyStackParamList = {
   'Journey/PendingSession': { sessionId: string };
   'Journey/Player': { sessionId: string };
   'Journey/AdaptivePlayer': { sessionId: string };
+  'Journey/AdaptiveFeedback': { sessionId: string };
   'Journey/Feedback': { sessionId: string };
 };
 
@@ -54,6 +56,11 @@ export function JourneyStack() {
         component={AdaptivePlayerScreen}
         name="Journey/AdaptivePlayer"
         options={{ title: 'Adaptive Player' }}
+      />
+      <Stack.Screen
+        component={AdaptiveFeedbackScreen}
+        name="Journey/AdaptiveFeedback"
+        options={{ title: '적응형 피드백' }}
       />
       <Stack.Screen
         component={FeedbackScreen}

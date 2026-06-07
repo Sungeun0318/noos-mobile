@@ -4,6 +4,8 @@ import type {
   AdaptiveSessionStartRequest,
   AdaptiveSessionStartResponse,
   AdaptiveSessionStatusResponse,
+  AdaptiveFeedbackRequest,
+  AdaptiveFeedbackResponse,
   AdaptiveWindowSubmitRequest,
   AdaptiveWindowSubmitResponse,
   PauseAdaptiveSessionRequest,
@@ -81,6 +83,12 @@ export const noosApi = {
     end: (id: string) =>
       request<AdaptiveSessionStatusResponse>(`/api/mobile/adaptive/sessions/${id}/end`, {
         method: 'POST',
+      }),
+    // TODO BE-D2: backend endpoint is not implemented yet; mock-first FE-D2 keeps local persistence.
+    feedback: (id: string, body: AdaptiveFeedbackRequest) =>
+      request<AdaptiveFeedbackResponse>(`/api/mobile/adaptive/sessions/${id}/feedback`, {
+        method: 'POST',
+        body: JSON.stringify(body),
       }),
   },
   auth: {

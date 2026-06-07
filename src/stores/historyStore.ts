@@ -8,6 +8,8 @@ import type { PlanetId } from '@/theme';
 export interface HistoryFeedbackSummary {
   musicFit: number;
   focusResult: number;
+  transitionNatural?: number;
+  memo?: string | null;
 }
 
 export interface HistoryAudioSummary {

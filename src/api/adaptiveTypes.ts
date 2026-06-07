@@ -141,6 +141,19 @@ export interface PauseAdaptiveSessionRequest {
   reason?: string | null;
 }
 
+export interface AdaptiveFeedbackRequest {
+  musicFit: number;
+  focusRelaxHelp: number;
+  transitionNatural: number;
+  memo: string;
+  skipped: boolean;
+}
+
+export interface AdaptiveFeedbackResponse {
+  ok: true;
+  savedAt: string;
+}
+
 export function normalizeAdaptivePlanet(planet: string | null | undefined): PlanetId {
   const normalized = planet?.trim().toLowerCase();
 

@@ -7,9 +7,14 @@ import {
   pauseAdaptiveSession,
   resumeAdaptiveSession,
   startAdaptiveSession,
+  submitAdaptiveFeedback,
   submitWindow,
 } from '@/api/adaptiveGateway';
-import type { AdaptiveSessionStartRequest, AdaptiveWindowSubmitRequest } from '@/api/adaptiveTypes';
+import type {
+  AdaptiveFeedbackRequest,
+  AdaptiveSessionStartRequest,
+  AdaptiveWindowSubmitRequest,
+} from '@/api/adaptiveTypes';
 import { __resetAdaptiveMock } from '@/api/adaptiveMock';
 import { useSettingsStore } from '@/stores/settingsStore';
 
@@ -17,6 +22,7 @@ import { __resetMMKV } from './mocks/react-native-mmkv';
 
 const adaptiveApi = vi.hoisted(() => ({
   end: vi.fn(),
+  feedback: vi.fn(),
   get: vi.fn(),
   pause: vi.fn(),
   resume: vi.fn(),
@@ -51,6 +57,14 @@ const windowPayload: AdaptiveWindowSubmitRequest = {
   windowDurationSec: 300,
   windowIndex: 0,
   windowStartAt: '2026-06-01T00:00:00Z',
+};
+
+const feedbackPayload: AdaptiveFeedbackRequest = {
+  focusRelaxHelp: 0.75,
+  memo: 'dummy memo',
+  musicFit: 0.8,
+  skipped: false,
+  transitionNatural: 0.6,
 };
 
 describe('adaptiveGateway', () => {
@@ -131,6 +145,10 @@ describe('adaptiveGateway', () => {
       sessionId: 'adaptive_real',
       status: 'ended',
     });
+    adaptiveApi.feedback.mockResolvedValue({
+      ok: true,
+      savedAt: '2026-06-01T00:03:00Z',
+    });
 
     await expect(startAdaptiveSession(startPayload, 'real')).resolves.toMatchObject({
       sessionId: 'adaptive_real',
@@ -150,6 +168,9 @@ describe('adaptiveGateway', () => {
     await expect(endAdaptiveSession('adaptive_real', 'real')).resolves.toMatchObject({
       status: 'ended',
     });
+    await expect(submitAdaptiveFeedback('adaptive_real', feedbackPayload, 'real')).resolves.toMatchObject({
+      ok: true,
+    });
 
     expect(adaptiveApi.start).toHaveBeenCalledWith(startPayload);
     expect(adaptiveApi.get).toHaveBeenCalledWith('adaptive_real');
@@ -157,6 +178,7 @@ describe('adaptiveGateway', () => {
     expect(adaptiveApi.pause).toHaveBeenCalledWith('adaptive_real', { reason: 'manual' });
     expect(adaptiveApi.resume).toHaveBeenCalledWith('adaptive_real');
     expect(adaptiveApi.end).toHaveBeenCalledWith('adaptive_real');
+    expect(adaptiveApi.feedback).toHaveBeenCalledWith('adaptive_real', feedbackPayload);
   });
 
   it('uses mock paths in mock mode', async () => {
@@ -179,9 +201,13 @@ describe('adaptiveGateway', () => {
     await expect(endAdaptiveSession(started.sessionId, 'mock')).resolves.toMatchObject({
       status: 'ended',
     });
+    await expect(submitAdaptiveFeedback(started.sessionId, feedbackPayload, 'mock')).resolves.toMatchObject({
+      ok: true,
+    });
 
     expect(adaptiveApi.start).not.toHaveBeenCalled();
     expect(adaptiveApi.get).not.toHaveBeenCalled();
     expect(adaptiveApi.submitWindow).not.toHaveBeenCalled();
+    expect(adaptiveApi.feedback).not.toHaveBeenCalled();
   });
 });
