@@ -1,11 +1,14 @@
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { startAdaptiveSession } from '@/api/adaptiveGateway';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
-import { Card } from '@/components/ui';
+import { Button, Card, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { MeasureStackParamList } from '@/navigation/MeasureStack';
+import { useAdaptiveSessionStore } from '@/stores/adaptiveSessionStore';
 import { useDeviceStore, type MuseStatus } from '@/stores/deviceStore';
 import { color, radius, space, type } from '@/theme';
 
@@ -24,15 +27,47 @@ const statusLabels: Record<MuseStatus, string> = {
 export function MeasureHomeScreen() {
   const navigation = useNavigation<MeasureHomeNavigation>();
   const muse = useDeviceStore((state) => state.muse);
+  const applyStartResponse = useAdaptiveSessionStore((state) => state.applyStartResponse);
+  const [adaptiveError, setAdaptiveError] = useState<string | null>(null);
+  const [startingAdaptive, setStartingAdaptive] = useState(false);
 
   function selectMethod(method: MeasureMethod) {
     noosTelemetry.track('measure_method_select', { method });
     navigation.navigate(method === 'muse' ? 'Measure/MuseConnect' : 'Measure/Manual');
   }
 
+  async function startAdaptive() {
+    const seedSource = muse.status === 'connected' || muse.status === 'measuring' ? 'eeg' : 'none';
+
+    setAdaptiveError(null);
+    setStartingAdaptive(true);
+
+    try {
+      const response = await startAdaptiveSession({
+        planetHint: 'Neptune',
+        seedSource,
+      });
+
+      applyStartResponse(response, {
+        planetHint: 'Neptune',
+        seedSource,
+      });
+      noosTelemetry.track('adaptive_session_start_tap', { seedSource });
+      navigation.getParent()?.navigate('Journey', {
+        params: { sessionId: response.sessionId },
+        screen: 'Journey/AdaptivePlayer',
+      });
+    } catch {
+      setAdaptiveError('적응형 세션을 시작하지 못했어요. 연결 상태를 확인해 주세요.');
+    } finally {
+      setStartingAdaptive(false);
+    }
+  }
+
   return (
     <ScreenBackdrop planet="earth">
       <ScrollView contentContainerStyle={styles.content}>
+        {adaptiveError ? <Toast message={adaptiveError} variant="danger" /> : null}
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Measure</Text>
           <Text style={styles.title}>측정 방식 선택</Text>
@@ -40,6 +75,24 @@ export function MeasureHomeScreen() {
         </View>
 
         <DeviceStatusInline status={muse.status} signalQuality={muse.signalQuality} />
+
+        <Card level={2} padding="xl" variant="glass">
+          <View style={styles.adaptiveCard}>
+            <View style={styles.adaptiveCopy}>
+              <Text style={styles.cardTitle}>적응형 세션 시작</Text>
+              <Text style={styles.description}>
+                Muse 신호를 5분 단위로 읽고, 다음 세그먼트 생성 상태를 플레이어에서 확인합니다.
+              </Text>
+            </View>
+            <Button
+              fullWidth
+              label="적응형 세션 시작"
+              loading={startingAdaptive}
+              onPress={startAdaptive}
+              size="lg"
+            />
+          </View>
+        </Card>
 
         <View style={styles.stack}>
           <MeasureMethodCard
@@ -140,6 +193,12 @@ function MethodIcon({ method }: { method: MeasureMethod }) {
 }
 
 const styles = StyleSheet.create({
+  adaptiveCard: {
+    gap: space.lg,
+  },
+  adaptiveCopy: {
+    gap: space.sm,
+  },
   cardHeader: {
     alignItems: 'center',
     flexDirection: 'row',
