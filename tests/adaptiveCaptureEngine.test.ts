@@ -164,6 +164,34 @@ describe('adaptiveCaptureEngine', () => {
     expect(useAdaptiveSessionStore.getState().wearStatus).toBe('uncertain');
   });
 
+  it('confirms wear off after sustained low signal ticks', async () => {
+    useAdaptiveSessionStore.getState().applyGetResponse(activeSession());
+
+    let now = 0;
+    const measure = vi.fn(async (_durationSec: number, onTick: (tick: MuseMeasureTick) => void) => {
+      for (let elapsedSec = 1; elapsedSec <= 7; elapsedSec += 1) {
+        onTick({ elapsedSec, sampleBufferLen: elapsedSec * 256, signalScore: 0.1 });
+        now += 1_000;
+      }
+
+      return eeg(0.1);
+    });
+    const submitWindow = vi.fn(async () => response(1));
+    const loop = createAdaptiveCaptureLoop({
+      adaptiveGateway: { submitWindow },
+      maxWindows: 1,
+      museGateway: { measure },
+      now: () => now,
+      sessionId: 'adaptive_loop',
+      store: useAdaptiveSessionStore,
+      windowSec: 300,
+    });
+
+    await loop.start();
+
+    expect(useAdaptiveSessionStore.getState().wearStatus).toBe('off');
+  });
+
   it('aborts an in-flight measure on stop and does not submit a partial window', async () => {
     vi.useFakeTimers();
     useAdaptiveSessionStore.getState().applyGetResponse(activeSession());
