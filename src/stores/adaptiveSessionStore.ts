@@ -29,6 +29,9 @@ interface AdaptiveSessionStoreShape {
   currentSegmentIndex: number | null;
   recentWindows: AdaptiveEegWindowView[];
   lastAction: AdaptiveAction | null;
+  lastSignalScore: number | null;
+  lastSampleBufferLen: number;
+  nextWindowIndex: number;
   wearStatus: AdaptiveWearStatus;
   nextGenStatus: AdaptiveNextGenStatus;
   setSession(session: AdaptiveSessionResponse | null): void;
@@ -38,6 +41,8 @@ interface AdaptiveSessionStoreShape {
     response: AdaptiveWindowSubmitResponse,
     submittedWindow?: AdaptiveWindowSubmitRequest,
   ): void;
+  setCaptureTick(tick: { signalScore: number; sampleBufferLen: number }): void;
+  setNextWindowIndex(index: number): void;
   setWearStatus(status: AdaptiveWearStatus): void;
   clear(): void;
 }
@@ -45,7 +50,10 @@ interface AdaptiveSessionStoreShape {
 const initialState = {
   currentSegmentIndex: null,
   lastAction: null,
+  lastSampleBufferLen: 0,
+  lastSignalScore: null,
   nextGenStatus: 'idle' as AdaptiveNextGenStatus,
+  nextWindowIndex: 0,
   recentWindows: [],
   segments: [],
   session: null,
@@ -215,6 +223,9 @@ export const useAdaptiveSessionStore = create<AdaptiveSessionStoreShape>()((set)
       const recentWindows = submittedWindow
         ? [windowFromResult(response, submittedWindow), ...state.recentWindows].slice(0, 8)
         : state.recentWindows;
+      const nextWindowIndex = submittedWindow
+        ? Math.max(state.nextWindowIndex, submittedWindow.windowIndex + 1)
+        : state.nextWindowIndex;
       const session = state.session
         ? {
             ...state.session,
@@ -227,11 +238,18 @@ export const useAdaptiveSessionStore = create<AdaptiveSessionStoreShape>()((set)
       return {
         ...withDerived(session, segments),
         lastAction: response.adaptiveAction,
+        nextWindowIndex,
         recentWindows,
         segments,
         session,
       };
     }),
+  setCaptureTick: (tick) =>
+    set({
+      lastSampleBufferLen: tick.sampleBufferLen,
+      lastSignalScore: tick.signalScore,
+    }),
+  setNextWindowIndex: (index) => set({ nextWindowIndex: Math.max(0, index) }),
   setWearStatus: (status) => set({ wearStatus: status }),
   clear: () => set(initialState),
 }));
