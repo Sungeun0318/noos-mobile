@@ -473,6 +473,9 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
             />
           </View>
           {viewModel.actionLabel ? <Text style={styles.body}>{viewModel.actionLabel}</Text> : null}
+          {viewModel.nextGenTone === 'ready' ? (
+            <Text style={styles.body}>세션은 이 화면에서 계속 진행됩니다.</Text>
+          ) : null}
           {playbackPlan.decision === 'loop-extend' ? (
             <Text style={styles.body}>다음 곡이 준비될 때까지 현재 음악을 끊김 없이 이어 재생합니다.</Text>
           ) : null}

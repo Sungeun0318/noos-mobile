@@ -56,10 +56,13 @@ describe('adaptivePlayerState', () => {
   });
 
   it('labels next generation states', () => {
-    expect(getNextGenState('idle')).toMatchObject({ label: '다음 세그먼트 없음', tone: 'idle' });
-    expect(getNextGenState('generating')).toMatchObject({ label: '다음 세그먼트 생성 중', tone: 'working' });
-    expect(getNextGenState('ready')).toMatchObject({ label: '다음 세그먼트 준비됨', tone: 'ready' });
-    expect(getNextGenState('failed')).toMatchObject({ label: '다음 세그먼트 실패', tone: 'failed' });
+    expect(getNextGenState('idle')).toMatchObject({ label: '다음 음악 없음', tone: 'idle' });
+    expect(getNextGenState('generating')).toMatchObject({ label: '다음 음악 생성 중', tone: 'working' });
+    expect(getNextGenState('ready')).toMatchObject({
+      label: '다음 음악 준비됨 · 현재 곡이 끝나면 자동 전환',
+      tone: 'ready',
+    });
+    expect(getNextGenState('failed')).toMatchObject({ label: '다음 음악 실패', tone: 'failed' });
   });
 
   it('labels wear and signal indicators', () => {

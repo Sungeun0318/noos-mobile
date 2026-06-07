@@ -1,15 +1,13 @@
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { startAdaptiveSession } from '@/api/adaptiveGateway';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
-import { Button, Card, Toast } from '@/components/ui';
+import { Button, Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { MeasureStackParamList } from '@/navigation/MeasureStack';
-import { useAdaptiveSessionStore } from '@/stores/adaptiveSessionStore';
 import { useDeviceStore, type MuseStatus } from '@/stores/deviceStore';
+import { useStateStore } from '@/stores/stateStore';
 import { color, radius, space, type } from '@/theme';
 
 type MeasureHomeNavigation = NativeStackNavigationProp<MeasureStackParamList, 'Measure/Home'>;
@@ -27,47 +25,27 @@ const statusLabels: Record<MuseStatus, string> = {
 export function MeasureHomeScreen() {
   const navigation = useNavigation<MeasureHomeNavigation>();
   const muse = useDeviceStore((state) => state.muse);
-  const applyStartResponse = useAdaptiveSessionStore((state) => state.applyStartResponse);
-  const [adaptiveError, setAdaptiveError] = useState<string | null>(null);
-  const [startingAdaptive, setStartingAdaptive] = useState(false);
+  const recommendedPlanet = useStateStore((state) => state.recommendedPlanet);
 
   function selectMethod(method: MeasureMethod) {
     noosTelemetry.track('measure_method_select', { method });
     navigation.navigate(method === 'muse' ? 'Measure/MuseConnect' : 'Measure/Manual');
   }
 
-  async function startAdaptive() {
-    const seedSource = muse.status === 'connected' || muse.status === 'measuring' ? 'eeg' : 'none';
-
-    setAdaptiveError(null);
-    setStartingAdaptive(true);
-
-    try {
-      const response = await startAdaptiveSession({
-        planetHint: 'Neptune',
-        seedSource,
-      });
-
-      applyStartResponse(response, {
-        planetHint: 'Neptune',
-        seedSource,
-      });
-      noosTelemetry.track('adaptive_session_start_tap', { seedSource });
-      navigation.getParent()?.navigate('Journey', {
-        params: { sessionId: response.sessionId },
-        screen: 'Journey/AdaptivePlayer',
-      });
-    } catch {
-      setAdaptiveError('적응형 세션을 시작하지 못했어요. 연결 상태를 확인해 주세요.');
-    } finally {
-      setStartingAdaptive(false);
-    }
+  function openAdaptiveSetup() {
+    noosTelemetry.track('adaptive_setup_open_tap', {
+      hasRecommendedPlanet: !!recommendedPlanet,
+      museStatus: muse.status,
+    });
+    navigation.getParent()?.navigate('Journey', {
+      params: recommendedPlanet ? { recommendedPlanet } : undefined,
+      screen: 'Journey/AdaptiveSetup',
+    });
   }
 
   return (
     <ScreenBackdrop planet="earth">
       <ScrollView contentContainerStyle={styles.content}>
-        {adaptiveError ? <Toast message={adaptiveError} variant="danger" /> : null}
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Measure</Text>
           <Text style={styles.title}>측정 방식 선택</Text>
@@ -87,8 +65,7 @@ export function MeasureHomeScreen() {
             <Button
               fullWidth
               label="적응형 세션 시작"
-              loading={startingAdaptive}
-              onPress={startAdaptive}
+              onPress={openAdaptiveSetup}
               size="lg"
             />
           </View>
