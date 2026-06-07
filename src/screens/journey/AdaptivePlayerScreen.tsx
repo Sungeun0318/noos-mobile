@@ -7,9 +7,15 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-import { getAdaptiveSession } from '@/api/adaptiveGateway';
+import { getAdaptiveSession, pauseAdaptiveSession, resumeAdaptiveSession } from '@/api/adaptiveGateway';
 import { resolveAudioSource } from '@/audio/resolveAudioSource';
 import { createAdaptiveCaptureLoop, type AdaptiveCaptureLoop } from '@/adaptive/adaptiveCaptureEngine';
+import { applyAdaptiveWearTransition } from '@/adaptive/adaptiveWearEffects';
+import {
+  createInitialWearDetectorState,
+  reduceWearDetector,
+  type WearDetectorState,
+} from '@/adaptive/wearDetector';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Toast } from '@/components/ui';
@@ -24,6 +30,7 @@ import {
 } from '@/screens/journey/adaptiveGraphData';
 import { buildAdaptivePlayerViewModel } from '@/screens/journey/adaptivePlayerState';
 import { useAdaptiveSessionStore } from '@/stores/adaptiveSessionStore';
+import { useDeviceStore } from '@/stores/deviceStore';
 import { color, motion, PLANET_COLORS, radius, space, type, type PlanetId } from '@/theme';
 
 type AdaptivePlayerProps = NativeStackScreenProps<JourneyStackParamList, 'Journey/AdaptivePlayer'>;
@@ -34,6 +41,7 @@ const orbSize = space['6xl'] * 2;
 const chartWidth = space['6xl'] * 4 + space['3xl'];
 const chartHeight = space['6xl'] * 2;
 const chartPadding = space.lg;
+const wearMonitorMs = 1_000;
 
 const bandColors: Record<BandKey, string> = {
   alpha: PLANET_COLORS.neptune.secondary,
@@ -58,6 +66,8 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   const graphAnimatedStyle = useAnimatedStyle(() => ({
     opacity: graphOpacity.value,
   }));
+  const muse = useDeviceStore((state) => state.muse);
+  const setWearStatus = useAdaptiveSessionStore((state) => state.setWearStatus);
   const viewModel = useMemo(
     () =>
       buildAdaptivePlayerViewModel({
@@ -87,6 +97,10 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   const player = useAudioPlayer(audioSource, { updateInterval: 500 });
   const status = useAudioPlayerStatus(player);
   const captureLoopRef = useRef<AdaptiveCaptureLoop | null>(null);
+  const screenActiveRef = useRef(false);
+  const autoPausedRef = useRef(false);
+  const deviceHadConnectionRef = useRef(false);
+  const deviceWearStateRef = useRef<WearDetectorState>(createInitialWearDetectorState());
   const startedAudioIdRef = useRef<string | null>(null);
   const [playState, setPlayState] = useState<PlayState>('paused');
   const [error, setError] = useState<string | null>(null);
@@ -107,18 +121,44 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
     });
   }, []);
 
+  const refreshSession = useCallback(async () => {
+    const response = await getAdaptiveSession(route.params.sessionId);
+    applyGetResponse(response);
+
+    return response;
+  }, [applyGetResponse, route.params.sessionId]);
+
+  const startCaptureLoop = useCallback(() => {
+    if (!screenActiveRef.current || captureLoopRef.current?.isRunning()) {
+      return;
+    }
+
+    const loop = createAdaptiveCaptureLoop({
+      sessionId: route.params.sessionId,
+    });
+
+    captureLoopRef.current = loop;
+    void loop.start().catch(() => {
+      if (screenActiveRef.current) {
+        setError('EEG 캡처를 이어가지 못했어요.');
+      }
+    });
+  }, [route.params.sessionId]);
+
+  const stopCaptureLoop = useCallback(() => {
+    captureLoopRef.current?.stop();
+    captureLoopRef.current = null;
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       let interval: ReturnType<typeof setInterval> | null = null;
+      screenActiveRef.current = true;
 
       async function refresh() {
         try {
-          const response = await getAdaptiveSession(route.params.sessionId);
-
-          if (!cancelled) {
-            applyGetResponse(response);
-          }
+          await refreshSession();
         } catch {
           if (!cancelled) {
             setError('세션 상태를 불러오지 못했어요. 네트워크를 확인해 주세요.');
@@ -131,14 +171,7 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
           return;
         }
 
-        captureLoopRef.current = createAdaptiveCaptureLoop({
-          sessionId: route.params.sessionId,
-        });
-        void captureLoopRef.current.start().catch(() => {
-          if (!cancelled) {
-            setError('EEG 캡처를 이어가지 못했어요.');
-          }
-        });
+        startCaptureLoop();
       });
       interval = setInterval(() => {
         void refresh();
@@ -147,15 +180,74 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
 
       return () => {
         cancelled = true;
-        captureLoopRef.current?.stop();
-        captureLoopRef.current = null;
+        screenActiveRef.current = false;
+        stopCaptureLoop();
 
         if (interval) {
           clearInterval(interval);
         }
       };
-    }, [applyGetResponse, route.params.sessionId]),
+    }, [refreshSession, route.params.sessionId, startCaptureLoop, stopCaptureLoop]),
   );
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const bleConnected = muse.status === 'connected' || muse.status === 'measuring';
+
+      if (bleConnected) {
+        deviceHadConnectionRef.current = true;
+      }
+
+      if (!deviceHadConnectionRef.current) {
+        return;
+      }
+
+      deviceWearStateRef.current = reduceWearDetector(deviceWearStateRef.current, {
+        bleConnected,
+        now: Date.now(),
+        signalScore: bleConnected ? muse.signalQuality : null,
+      });
+
+      if (deviceWearStateRef.current.status === 'off' || deviceWearStateRef.current.status === 'worn') {
+        setWearStatus(deviceWearStateRef.current.status);
+      }
+    }, wearMonitorMs);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [muse.signalQuality, muse.status, setWearStatus]);
+
+  useEffect(() => {
+    void applyAdaptiveWearTransition({
+      autoPaused: autoPausedRef.current,
+      pauseAudio: () => {
+        player.pause();
+        setPlayState('paused');
+      },
+      pauseSession: async (sessionId, payload) => {
+        const response = await pauseAdaptiveSession(sessionId, payload);
+        await refreshSession();
+
+        return response;
+      },
+      resumeSession: async (sessionId) => {
+        const response = await resumeAdaptiveSession(sessionId);
+        await refreshSession();
+
+        return response;
+      },
+      sessionId: route.params.sessionId,
+      setAutoPaused: (value) => {
+        autoPausedRef.current = value;
+      },
+      startCapture: startCaptureLoop,
+      stopCapture: stopCaptureLoop,
+      wearStatus,
+    }).catch(() => {
+      setError('착용 상태 변경을 세션에 반영하지 못했어요.');
+    });
+  }, [player, refreshSession, route.params.sessionId, startCaptureLoop, stopCaptureLoop, wearStatus]);
 
   useEffect(() => {
     if (!viewModel.canPlayCurrent) {
@@ -229,6 +321,7 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
         ]}
       >
         {error ? <Toast message={error} variant="danger" /> : null}
+        {wearStatus === 'off' ? <WearOffOverlay /> : null}
 
         <View style={styles.pillRow}>
           <StatusPill label={viewModel.wearLabel} tone={wearStatus === 'worn' ? 'good' : 'neutral'} />
@@ -309,6 +402,17 @@ function LightingPill() {
   return (
     <View style={styles.statusPill}>
       <Text style={styles.statusPillText}>조명 OFF</Text>
+    </View>
+  );
+}
+
+function WearOffOverlay() {
+  return (
+    <View style={styles.wearOverlay}>
+      <Text style={styles.segmentTitle}>Muse 착용을 확인해 주세요</Text>
+      <Text style={styles.body}>
+        EEG 신호가 끊겨 세션을 잠시 멈췄습니다. 다시 착용하면 자동으로 이어집니다.
+      </Text>
     </View>
   );
 }
@@ -585,6 +689,14 @@ const styles = StyleSheet.create({
     borderRadius: radius['2xl'],
     borderWidth: StyleSheet.hairlineWidth,
     gap: space.lg,
+    padding: space.lg,
+  },
+  wearOverlay: {
+    backgroundColor: color.bg.overlay,
+    borderColor: color.state.warning,
+    borderRadius: radius['2xl'],
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: space.sm,
     padding: space.lg,
   },
   empty: {

@@ -5,6 +5,14 @@ import { dominantBand as resolveDominantBand } from '@/screens/measure/eegBands'
 import { museGateway as defaultMuseGateway } from '@/screens/measure/museGateway';
 import type { MuseMeasureOptions, MuseMeasureTick } from '@/screens/measure/museSimulator';
 import { useAdaptiveSessionStore } from '@/stores/adaptiveSessionStore';
+import {
+  createInitialWearDetectorState,
+  defaultWearDetectorConfig,
+  reduceWearDetector,
+  type WearDetectorConfig,
+  type WearDetectorInput,
+  type WearDetectorState,
+} from '@/adaptive/wearDetector';
 
 const defaultWindowSec = 300;
 const defaultSignalThreshold = 0.35;
@@ -28,6 +36,7 @@ interface AdaptiveCaptureStore {
   getState(): {
     session: { sessionId: string; status: string } | null;
     nextWindowIndex: number;
+    wearStatus: 'worn' | 'uncertain' | 'off' | 'unknown';
     applyWindowResult(
       response: AdaptiveWindowSubmitResponse,
       submittedWindow?: AdaptiveWindowSubmitRequest,
@@ -41,6 +50,7 @@ export interface AdaptiveCaptureLoopOptions {
   sessionId: string;
   windowSec?: number;
   signalThreshold?: number;
+  wearDetectorConfig?: Partial<WearDetectorConfig>;
   museGateway?: AdaptiveCaptureMuseGateway;
   adaptiveGateway?: AdaptiveCaptureGateway;
   store?: AdaptiveCaptureStore;
@@ -108,10 +118,23 @@ export function createAdaptiveCaptureLoop(options: AdaptiveCaptureLoopOptions): 
   };
   const store = options.store ?? useAdaptiveSessionStore;
   const now = options.now ?? defaultNow;
+  const wearConfig = {
+    ...defaultWearDetectorConfig,
+    ...(options.wearDetectorConfig ?? {}),
+    signalThreshold,
+  };
   let running = false;
   let stopped = false;
   let activeAbortController: AbortController | null = null;
   let runningPromise: Promise<void> | null = null;
+  let wearState: WearDetectorState = createInitialWearDetectorState(store.getState().wearStatus);
+
+  function applyWear(input: WearDetectorInput) {
+    wearState = reduceWearDetector(wearState, input, wearConfig);
+    store.getState().setWearStatus(wearState.status);
+
+    return wearState.status;
+  }
 
   async function run() {
     let windowIndex = store.getState().nextWindowIndex;
@@ -132,12 +155,12 @@ export function createAdaptiveCaptureLoop(options: AdaptiveCaptureLoopOptions): 
             sampleBufferLen: tick.sampleBufferLen,
             signalScore: tick.signalScore,
           });
-
-          if (tick.signalScore >= signalThreshold) {
-            store.getState().setWearStatus('worn');
-          } else {
-            store.getState().setWearStatus('uncertain');
-          }
+          applyWear({
+            bleConnected: true,
+            now: now(),
+            packetReceived: true,
+            signalScore: tick.signalScore,
+          });
         }, { signal: abortController.signal });
 
         if (stopped || abortController.signal.aborted) {
@@ -150,6 +173,13 @@ export function createAdaptiveCaptureLoop(options: AdaptiveCaptureLoopOptions): 
           windowIndex,
           windowSec,
           windowStartAt,
+        });
+        applyWear({
+          bands: request.bands,
+          bleConnected: true,
+          now: now(),
+          packetReceived: true,
+          qualityScore: request.qualityScore,
         });
         const response = await adaptiveGateway.submitWindow(options.sessionId, request);
 
