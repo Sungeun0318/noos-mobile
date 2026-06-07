@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { AdaptivePlayerScreen } from '@/screens/journey/AdaptivePlayerScreen';
 import { FeedbackScreen } from '@/screens/journey/FeedbackScreen';
 import { PlanetSelectScreen } from '@/screens/journey/PlanetSelectScreen';
 import { PlayerScreen } from '@/screens/journey/PlayerScreen';
@@ -10,6 +11,7 @@ export type JourneyStackParamList = {
   'Journey/PlanetSelect': undefined;
   'Journey/PendingSession': { sessionId: string };
   'Journey/Player': { sessionId: string };
+  'Journey/AdaptivePlayer': { sessionId: string };
   'Journey/Feedback': { sessionId: string };
 };
 
@@ -39,6 +41,11 @@ export function JourneyStack() {
         component={PlayerScreen}
         name="Journey/Player"
         options={{ title: 'Player' }}
+      />
+      <Stack.Screen
+        component={AdaptivePlayerScreen}
+        name="Journey/AdaptivePlayer"
+        options={{ title: 'Adaptive Player' }}
       />
       <Stack.Screen
         component={FeedbackScreen}
