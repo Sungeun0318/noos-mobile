@@ -30,7 +30,6 @@ const sliderLabels: Record<AdaptiveFeedbackKey, string> = {
 export function AdaptiveFeedbackScreen({ navigation, route }: AdaptiveFeedbackProps) {
   const insets = useSafeAreaInsets();
   const session = useAdaptiveSessionStore((state) => state.session);
-  const clearAdaptiveSession = useAdaptiveSessionStore((state) => state.clear);
   const upsertHistory = useHistoryStore((state) => state.upsert);
   const [ratings, setRatings] = useState<Record<AdaptiveFeedbackKey, number>>({
     focusRelaxHelp: 0.5,
@@ -43,10 +42,6 @@ export function AdaptiveFeedbackScreen({ navigation, route }: AdaptiveFeedbackPr
   const [notice, setNotice] = useState<string | null>(null);
   const activeMatchesRoute = session?.sessionId === route.params.sessionId;
 
-  function goHistory() {
-    navigation.getParent()?.navigate('History');
-  }
-
   function goToday() {
     navigation.getParent()?.navigate('Today');
   }
@@ -56,8 +51,7 @@ export function AdaptiveFeedbackScreen({ navigation, route }: AdaptiveFeedbackPr
       upsertHistory(historyFromAdaptiveSession(session, adaptiveFeedbackSummaryFromPayload(payload)));
     }
 
-    clearAdaptiveSession();
-    goHistory();
+    navigation.navigate('Journey/AdaptiveSummary', { sessionId: route.params.sessionId });
   }
 
   function setSlider(key: AdaptiveFeedbackKey, value: number) {

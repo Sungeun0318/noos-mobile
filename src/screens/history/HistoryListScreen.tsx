@@ -125,6 +125,7 @@ export function HistoryListScreen({ navigation }: HistoryListProps) {
 
 function HistoryCard({ session, onPress }: { session: HistorySession; onPress: () => void }) {
   const planet = PLANETS[session.planet];
+  const adaptive = session.kind === 'adaptive';
 
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
@@ -134,7 +135,10 @@ function HistoryCard({ session, onPress }: { session: HistorySession; onPress: (
           <View style={styles.cardCopy}>
             <View style={styles.cardTitleRow}>
               <Text style={styles.cardTitle}>{session.summary?.title ?? planet.trackName}</Text>
-              <Text style={styles.durationPill}>{formatDuration(session.durationSec)}</Text>
+              <View style={styles.pillRow}>
+                {adaptive ? <Text style={styles.kindPill}>적응형</Text> : null}
+                <Text style={styles.durationPill}>{formatDuration(session.durationSec)}</Text>
+              </View>
             </View>
             <Text style={styles.bodyText}>{formatTime(session.completedAt)} · {planet.title}</Text>
             <Text style={styles.metaText}>{session.stateLabel ?? '상태 기록 없음'}</Text>
@@ -190,9 +194,15 @@ function formatFeedback(session: HistorySession) {
     return '피드백 없음';
   }
 
-  return `음악 ${Math.round(session.feedbackSummary.musicFit * 100)}% · 집중 ${Math.round(
+  const base = `음악 ${Math.round(session.feedbackSummary.musicFit * 100)}% · 집중 ${Math.round(
     session.feedbackSummary.focusResult * 100,
   )}%`;
+
+  if (typeof session.feedbackSummary.transitionNatural === 'number') {
+    return `${base} · 전환 ${Math.round(session.feedbackSummary.transitionNatural * 100)}%`;
+  }
+
+  return base;
 }
 
 const orbSize = space['4xl'];
@@ -253,6 +263,13 @@ const styles = StyleSheet.create({
     fontWeight: type.caption.weight,
     lineHeight: type.caption.lineHeight,
   },
+  kindPill: {
+    color: color.text.primary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    lineHeight: type.caption.lineHeight,
+  },
   empty: {
     flex: 1,
     gap: space.lg,
@@ -287,6 +304,11 @@ const styles = StyleSheet.create({
   planetImage: {
     borderColor: color.border.default,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  pillRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space.sm,
   },
   pressed: {
     opacity: 0.85,

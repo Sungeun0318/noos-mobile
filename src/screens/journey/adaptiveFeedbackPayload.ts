@@ -2,8 +2,10 @@ import type {
   AdaptiveFeedbackRequest,
   AdaptiveSegmentView,
   AdaptiveSessionResponse,
+  AdaptiveSixAxis,
 } from '@/api/adaptiveTypes';
 import { normalizeAdaptivePlanet } from '@/api/adaptiveTypes';
+import type { CurrentState } from '@/api/types';
 import type { HistoryFeedbackSummary, HistorySession } from '@/stores/historyStore';
 import { PLANETS } from '@/theme';
 
@@ -59,10 +61,11 @@ export function historyFromAdaptiveSession(
       : null,
     completedAt: session.endedAt ?? completedAt,
     createdAt: session.startedAt ?? session.createdAt,
-    currentState: null,
+    currentState: latestWindow?.currentState ? currentStateFromAdaptive(latestWindow.currentState) : null,
     durationSec: totalDurationSec(session.segments),
     feedbackSummary,
     intentText: null,
+    kind: 'adaptive',
     planet,
     sessionId: session.sessionId,
     stateLabel: latestWindow?.stateLabel ?? '적응형 세션',
@@ -70,6 +73,17 @@ export function historyFromAdaptiveSession(
       description: 'Muse 신호를 기반으로 음악을 조정한 적응형 세션입니다.',
       title: `${planetMeta.trackName} Adaptive`,
     },
+  };
+}
+
+function currentStateFromAdaptive(state: AdaptiveSixAxis): CurrentState {
+  return {
+    cortical_arousal: numeric(state.corticalArousal),
+    fatigue_risk: numeric(state.fatigueRisk),
+    focus_readiness: numeric(state.focusReadiness),
+    mental_workload: numeric(state.mentalWorkload),
+    relaxation_level: numeric(state.relaxationLevel),
+    stress_load: numeric(state.stressLoad),
   };
 }
 
@@ -91,4 +105,8 @@ function totalDurationSec(segments: AdaptiveSegmentView[]) {
   const total = segments.reduce((sum, segment) => sum + segment.durationSec, 0);
 
   return total > 0 ? total : 0;
+}
+
+function numeric(value: number | null | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }

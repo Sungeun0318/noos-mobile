@@ -126,10 +126,13 @@ export function HistoryDetailScreen({ navigation, route }: HistoryDetailProps) {
 }
 
 function SessionMeta({ session }: { session: HistorySession }) {
+  const adaptive = session.kind === 'adaptive';
+
   return (
     <Card level={1} padding="lg" variant="glass">
       <View style={styles.metaStack}>
         <Text style={styles.cardTitle}>세션 정보</Text>
+        {adaptive ? <Text style={styles.kindText}>적응형 세션</Text> : null}
         <Text style={styles.bodyText}>
           {formatDateTime(session.completedAt)} · {Math.round(session.durationSec / 60)}분
         </Text>
@@ -165,6 +168,9 @@ function FeedbackBlock({ session }: { session: HistorySession }) {
           <View style={styles.feedbackRow}>
             <FeedbackPill label="음악" value={session.feedbackSummary.musicFit} />
             <FeedbackPill label="집중" value={session.feedbackSummary.focusResult} />
+            {typeof session.feedbackSummary.transitionNatural === 'number' ? (
+              <FeedbackPill label="전환" value={session.feedbackSummary.transitionNatural} />
+            ) : null}
           </View>
         ) : (
           <Text style={styles.bodyText}>피드백 없음</Text>
@@ -244,6 +250,13 @@ const styles = StyleSheet.create({
   },
   feedbackText: {
     color: color.text.primary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    lineHeight: type.caption.lineHeight,
+  },
+  kindText: {
+    color: color.brand.accent,
     fontFamily: type.caption.family,
     fontSize: type.caption.size,
     fontWeight: type.caption.weight,
