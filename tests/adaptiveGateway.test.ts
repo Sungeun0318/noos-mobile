@@ -58,12 +58,21 @@ describe('adaptiveGateway', () => {
     __resetAdaptiveMock();
     __resetMMKV();
     vi.clearAllMocks();
+    useSettingsStore.getState().setAdaptiveBackendReal(false);
     useSettingsStore.getState().setSimulationMode(false);
   });
 
-  it('selects mode from simulationMode', () => {
-    expect(currentAdaptiveGatewayMode(false)).toBe('real');
-    expect(currentAdaptiveGatewayMode(true)).toBe('mock');
+  it('selects real mode when adaptive backend override is enabled', () => {
+    expect(currentAdaptiveGatewayMode(true, true)).toBe('real');
+    expect(currentAdaptiveGatewayMode(false, true)).toBe('real');
+  });
+
+  it('selects mock mode when simulation is enabled without adaptive override', () => {
+    expect(currentAdaptiveGatewayMode(true, false)).toBe('mock');
+  });
+
+  it('selects real mode when simulation is disabled without adaptive override', () => {
+    expect(currentAdaptiveGatewayMode(false, false)).toBe('real');
   });
 
   it('uses noosApi adaptive endpoints in real mode', async () => {
