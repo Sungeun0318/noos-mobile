@@ -1,4 +1,5 @@
 import type { MeasureEeg } from '@/api/types';
+import type { EegBands } from '@/screens/measure/eegBands';
 
 export interface SimulatedMuseDevice {
   deviceId: string;
@@ -8,6 +9,7 @@ export interface SimulatedMuseDevice {
 }
 
 export interface MuseMeasureTick {
+  bands?: EegBands;
   elapsedSec: number;
   signalScore: number;
   sampleBufferLen: number;
@@ -33,6 +35,18 @@ function clamp01(value: number) {
 
 function rounded(value: number) {
   return Math.round(value * 10) / 10;
+}
+
+function liveBandsForTick(elapsedSec: number, durationSec: number): EegBands {
+  const phase = elapsedSec / Math.max(durationSec, 1) * Math.PI * 2;
+
+  return {
+    alpha: rounded(28 + Math.sin(phase) * 5 + Math.sin(phase * 0.5) * 3),
+    beta: rounded(24 + Math.cos(phase * 0.8) * 4),
+    delta: rounded(12 + Math.sin(phase * 0.35 + 1.2) * 2),
+    gamma: rounded(9 + Math.cos(phase * 1.25 + 0.4) * 2),
+    theta: rounded(18 + Math.sin(phase * 0.7 + 0.8) * 4),
+  };
 }
 
 export const museSimulator = {
@@ -82,6 +96,7 @@ export const museSimulator = {
 
       const signalScore = clamp01(0.72 + elapsedSec / safeDurationSec * 0.16);
       onTick?.({
+        bands: liveBandsForTick(elapsedSec, safeDurationSec),
         elapsedSec,
         signalScore,
         sampleBufferLen: elapsedSec * sampleRateHz,

@@ -1,6 +1,7 @@
 import type { AdaptiveWindowSubmitRequest, AdaptiveWindowSubmitResponse } from '@/api/adaptiveTypes';
 import { submitWindow as submitAdaptiveWindow } from '@/api/adaptiveGateway';
 import type { MeasureEeg } from '@/api/types';
+import type { CaptureTickWithBands } from '@/adaptive/adaptiveLiveState';
 import { dominantBand as resolveDominantBand } from '@/screens/measure/eegBands';
 import { museGateway as defaultMuseGateway } from '@/screens/measure/museGateway';
 import type { MuseMeasureOptions, MuseMeasureTick } from '@/screens/measure/museSimulator';
@@ -41,7 +42,7 @@ interface AdaptiveCaptureStore {
       response: AdaptiveWindowSubmitResponse,
       submittedWindow?: AdaptiveWindowSubmitRequest,
     ): void;
-    setCaptureTick(tick: { signalScore: number; sampleBufferLen: number }): void;
+    setCaptureTick(tick: CaptureTickWithBands): void;
     setWearStatus(status: 'worn' | 'uncertain' | 'off' | 'unknown'): void;
   };
 }
@@ -152,6 +153,8 @@ export function createAdaptiveCaptureLoop(options: AdaptiveCaptureLoopOptions): 
       try {
         const eeg = await muse.measure(windowSec, (tick) => {
           store.getState().setCaptureTick({
+            bands: tick.bands,
+            elapsedSec: tick.elapsedSec,
             sampleBufferLen: tick.sampleBufferLen,
             signalScore: tick.signalScore,
           });

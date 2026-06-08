@@ -162,12 +162,47 @@ describe('adaptiveSessionStore', () => {
     expect(state.session?.sessionId).toBe('adaptive_1');
   });
 
+  it('stores live band ticks in a ring buffer and derives smoothed six-axis state', () => {
+    useAdaptiveSessionStore.getState().setCaptureTick({
+      bands: {
+        alpha: 40,
+        beta: 20,
+        delta: 5,
+        gamma: 5,
+        theta: 10,
+      },
+      elapsedSec: 1,
+      sampleBufferLen: 256,
+      signalScore: 0.8,
+    });
+
+    const state = useAdaptiveSessionStore.getState();
+
+    expect(state.lastSignalScore).toBe(0.8);
+    expect(state.liveBands).toHaveLength(1);
+    expect(state.liveBands[0]?.normalized.alpha).toBeGreaterThan(0);
+    expect(state.liveSixAxis?.relaxationLevel).toBeGreaterThan(0);
+  });
+
   it('clears adaptive state', () => {
     useAdaptiveSessionStore.getState().applyGetResponse(fullSession('ready'));
+    useAdaptiveSessionStore.getState().setCaptureTick({
+      bands: {
+        alpha: 40,
+        beta: 20,
+        delta: 5,
+        gamma: 5,
+        theta: 10,
+      },
+      sampleBufferLen: 256,
+      signalScore: 0.8,
+    });
     useAdaptiveSessionStore.getState().setWearStatus('worn');
     useAdaptiveSessionStore.getState().clear();
 
     expect(useAdaptiveSessionStore.getState()).toMatchObject({
+      liveBands: [],
+      liveSixAxis: null,
       nextGenStatus: 'idle',
       session: null,
       wearStatus: 'unknown',

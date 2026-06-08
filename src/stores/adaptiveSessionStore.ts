@@ -6,6 +6,7 @@ import type {
   AdaptiveNextGenStatus,
   AdaptiveSegmentStatus,
   AdaptiveSegmentView,
+  AdaptiveSixAxis,
   AdaptiveSessionResponse,
   AdaptiveSessionStartResponse,
   AdaptiveWearStatus,
@@ -13,6 +14,11 @@ import type {
   AdaptiveWindowSubmitResponse,
 } from '@/api/adaptiveTypes';
 import { normalizeAdaptivePlanet } from '@/api/adaptiveTypes';
+import {
+  appendLiveBandPoint,
+  type AdaptiveLiveBandPoint,
+  type CaptureTickWithBands,
+} from '@/adaptive/adaptiveLiveState';
 import { PLANETS } from '@/theme';
 
 type SegmentNextGenStatus = Exclude<AdaptiveNextGenStatus, 'idle'>;
@@ -28,6 +34,8 @@ interface AdaptiveSessionStoreShape {
   segments: AdaptiveSegmentView[];
   currentSegmentIndex: number | null;
   recentWindows: AdaptiveEegWindowView[];
+  liveBands: AdaptiveLiveBandPoint[];
+  liveSixAxis: AdaptiveSixAxis | null;
   lastAction: AdaptiveAction | null;
   lastSignalScore: number | null;
   lastSampleBufferLen: number;
@@ -41,7 +49,7 @@ interface AdaptiveSessionStoreShape {
     response: AdaptiveWindowSubmitResponse,
     submittedWindow?: AdaptiveWindowSubmitRequest,
   ): void;
-  setCaptureTick(tick: { signalScore: number; sampleBufferLen: number }): void;
+  setCaptureTick(tick: CaptureTickWithBands): void;
   setCurrentSegmentIndex(index: number): void;
   setNextWindowIndex(index: number): void;
   setWearStatus(status: AdaptiveWearStatus): void;
@@ -51,6 +59,8 @@ interface AdaptiveSessionStoreShape {
 const initialState = {
   currentSegmentIndex: null,
   lastAction: null,
+  liveBands: [],
+  liveSixAxis: null,
   lastSampleBufferLen: 0,
   lastSignalScore: null,
   nextGenStatus: 'idle' as AdaptiveNextGenStatus,
@@ -250,9 +260,18 @@ export const useAdaptiveSessionStore = create<AdaptiveSessionStoreShape>()((set)
       };
     }),
   setCaptureTick: (tick) =>
-    set({
-      lastSampleBufferLen: tick.sampleBufferLen,
-      lastSignalScore: tick.signalScore,
+    set((state) => {
+      const liveState = appendLiveBandPoint({
+        points: state.liveBands,
+        previousSixAxis: state.liveSixAxis,
+        tick,
+      });
+
+      return {
+        ...liveState,
+        lastSampleBufferLen: tick.sampleBufferLen,
+        lastSignalScore: tick.signalScore,
+      };
     }),
   setCurrentSegmentIndex: (index) =>
     set((state) => {
