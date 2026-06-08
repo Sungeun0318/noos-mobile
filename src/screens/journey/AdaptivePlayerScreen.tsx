@@ -7,7 +7,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-import type { AdaptiveSegmentView } from '@/api/adaptiveTypes';
+import type { AdaptiveSegmentView, AdaptiveSixAxis } from '@/api/adaptiveTypes';
 import {
   endAdaptiveSession,
   getAdaptiveSession,
@@ -16,6 +16,7 @@ import {
 } from '@/api/adaptiveGateway';
 import { resolveAudioSource } from '@/audio/resolveAudioSource';
 import { createAdaptiveCaptureLoop, type AdaptiveCaptureLoop } from '@/adaptive/adaptiveCaptureEngine';
+import { buildLiveBandSeries, type LiveBandSeries } from '@/adaptive/adaptiveLiveState';
 import { applyAdaptiveWearTransition } from '@/adaptive/adaptiveWearEffects';
 import {
   createInitialWearDetectorState,
@@ -31,7 +32,6 @@ import {
   buildAdaptiveGraphData,
   type AdaptiveGraphData,
   type BandKey,
-  type BandSeries,
   type TimelinePoint,
 } from '@/screens/journey/adaptiveGraphData';
 import { buildAdaptivePlayerViewModel } from '@/screens/journey/adaptivePlayerState';
@@ -42,6 +42,11 @@ import { color, motion, PLANET_COLORS, radius, space, type, type PlanetId } from
 
 type AdaptivePlayerProps = NativeStackScreenProps<JourneyStackParamList, 'Journey/AdaptivePlayer'>;
 type PlayState = 'loading' | 'playing' | 'paused' | 'error';
+type ChartSeries = {
+  key: BandKey;
+  label: string;
+  points: Array<{ normalized: number }>;
+};
 interface AdaptiveAudioPlayer {
   loop: boolean;
   volume: number;
@@ -77,11 +82,14 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   const lastSignalScore = useAdaptiveSessionStore((state) => state.lastSignalScore);
   const nextGenStatus = useAdaptiveSessionStore((state) => state.nextGenStatus);
   const recentWindows = useAdaptiveSessionStore((state) => state.recentWindows);
+  const liveBands = useAdaptiveSessionStore((state) => state.liveBands);
+  const liveSixAxis = useAdaptiveSessionStore((state) => state.liveSixAxis);
   const wearStatus = useAdaptiveSessionStore((state) => state.wearStatus);
   const applyGetResponse = useAdaptiveSessionStore((state) => state.applyGetResponse);
   const currentSegmentIndex = useAdaptiveSessionStore((state) => state.currentSegmentIndex);
   const setCurrentSegmentIndex = useAdaptiveSessionStore((state) => state.setCurrentSegmentIndex);
   const graphData = useMemo(() => buildAdaptiveGraphData(recentWindows), [recentWindows]);
+  const liveSeries = useMemo(() => buildLiveBandSeries(liveBands), [liveBands]);
   const graphOpacity = useSharedValue(1);
   const graphAnimatedStyle = useAnimatedStyle(() => ({
     opacity: graphOpacity.value,
@@ -544,7 +552,13 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
           variant="destructive"
         />
 
-        <AdaptiveEegDashboard animatedStyle={graphAnimatedStyle} data={graphData} />
+        <AdaptiveEegDashboard
+          animatedStyle={graphAnimatedStyle}
+          data={graphData}
+          livePointCount={liveBands.length}
+          liveSeries={liveSeries}
+          liveSixAxis={liveSixAxis}
+        />
       </ScrollView>
     </ScreenBackdrop>
   );
@@ -695,9 +709,15 @@ async function crossfadeToNext({
 function AdaptiveEegDashboard({
   animatedStyle,
   data,
+  livePointCount,
+  liveSeries,
+  liveSixAxis,
 }: {
   animatedStyle: ReturnType<typeof useAnimatedStyle>;
   data: AdaptiveGraphData;
+  livePointCount: number;
+  liveSeries: LiveBandSeries[];
+  liveSixAxis: AdaptiveSixAxis | null;
 }) {
   const deltaText = data.deltas.length > 0
     ? data.deltas.map((delta) => delta.text).join(' · ')
@@ -708,27 +728,47 @@ function AdaptiveEegDashboard({
       <View style={styles.graphHeader}>
         <View>
           <Text style={styles.label}>실시간 EEG</Text>
-          <Text style={styles.segmentTitle}>5밴드 트렌드</Text>
+          <Text style={styles.segmentTitle}>라이브 밴드 파워</Text>
         </View>
-        <Text style={styles.windowCount}>{data.timeline.length} windows</Text>
+        <Text style={styles.windowCount}>{livePointCount} ticks</Text>
       </View>
 
-      {data.hasData ? (
+      {livePointCount > 0 ? (
         <>
-          <BandTrendChart series={data.series} />
+          <BandTrendChart series={liveSeries as ChartSeries[]} />
           <View style={styles.bandLegend}>
-            {data.series.map((series) => (
+            {liveSeries.map((series) => (
               <View key={series.key} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: bandColors[series.key] }]} />
                 <Text style={styles.legendText}>{series.label}</Text>
               </View>
             ))}
           </View>
+          <LiveSixAxisPanel state={liveSixAxis} />
         </>
       ) : (
         <View style={styles.graphEmpty}>
+          <Text style={styles.body}>라이브 신호를 기다리고 있어요.</Text>
+          <Text style={styles.body}>시뮬레이션 EEG가 시작되면 1초 단위 밴드가 표시됩니다.</Text>
+        </View>
+      )}
+
+      <View style={styles.graphDivider} />
+
+      <View style={styles.graphHeader}>
+        <View>
+          <Text style={styles.label}>5분 윈도우</Text>
+          <Text style={styles.segmentTitle}>적응 판단 기록</Text>
+        </View>
+        <Text style={styles.windowCount}>{data.timeline.length} windows</Text>
+      </View>
+
+      {data.hasData ? (
+        <BandTrendChart series={data.series} />
+      ) : (
+        <View style={styles.graphEmpty}>
           <Text style={styles.body}>아직 제출된 EEG 윈도우가 없어요.</Text>
-          <Text style={styles.body}>캡처가 끝나면 밴드 흐름이 표시됩니다.</Text>
+          <Text style={styles.body}>캡처가 끝나면 적응 판단 기록이 표시됩니다.</Text>
         </View>
       )}
 
@@ -742,7 +782,37 @@ function AdaptiveEegDashboard({
   );
 }
 
-function BandTrendChart({ series }: { series: BandSeries[] }) {
+function LiveSixAxisPanel({ state }: { state: AdaptiveSixAxis | null }) {
+  const axes = [
+    { key: 'focusReadiness', label: '집중 준비', value: state?.focusReadiness ?? null },
+    { key: 'stressLoad', label: '스트레스', value: state?.stressLoad ?? null },
+    { key: 'fatigueRisk', label: '피로 위험', value: state?.fatigueRisk ?? null },
+    { key: 'relaxationLevel', label: '이완', value: state?.relaxationLevel ?? null },
+    { key: 'corticalArousal', label: '각성', value: state?.corticalArousal ?? null },
+    { key: 'mentalWorkload', label: '인지 부하', value: state?.mentalWorkload ?? null },
+  ];
+
+  return (
+    <View style={styles.liveAxisPanel}>
+      <Text style={styles.label}>스무딩 6축</Text>
+      <View style={styles.liveAxisGrid}>
+        {axes.map((axis) => (
+          <View key={axis.key} style={styles.liveAxisItem}>
+            <View style={styles.liveAxisHeader}>
+              <Text style={styles.legendText}>{axis.label}</Text>
+              <Text style={styles.axisValue}>{formatPercent(axis.value)}</Text>
+            </View>
+            <View style={styles.axisTrack}>
+              <View style={[styles.axisFill, { width: `${Math.round((axis.value ?? 0) * 100)}%` }]} />
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function BandTrendChart({ series }: { series: ChartSeries[] }) {
   return (
     <View style={styles.chartFrame}>
       <Svg height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} width="100%">
@@ -814,7 +884,7 @@ function Timeline({ points }: { points: TimelinePoint[] }) {
   );
 }
 
-function buildSeriesPath(series: BandSeries) {
+function buildSeriesPath(series: ChartSeries) {
   return series.points
     .map((point, index) => {
       const x = pointX(index, series.points.length);
@@ -825,7 +895,7 @@ function buildSeriesPath(series: BandSeries) {
     .join(' ');
 }
 
-function latestPoint(series: BandSeries) {
+function latestPoint(series: ChartSeries) {
   const point = series.points[series.points.length - 1];
 
   if (!point) {
@@ -875,6 +945,14 @@ function formatTime(valueSec: number) {
   const seconds = String(totalSec % 60).padStart(2, '0');
 
   return `${minutes}:${seconds}`;
+}
+
+function formatPercent(value: number | null) {
+  if (value === null || !Number.isFinite(value)) {
+    return '--';
+  }
+
+  return `${Math.round(value * 100)}%`;
 }
 
 const styles = StyleSheet.create({
@@ -942,6 +1020,10 @@ const styles = StyleSheet.create({
     gap: space.md,
     justifyContent: 'space-between',
   },
+  graphDivider: {
+    backgroundColor: color.border.subtle,
+    height: StyleSheet.hairlineWidth,
+  },
   graphPanel: {
     backgroundColor: color.bg.glass,
     borderColor: color.border.default,
@@ -1004,6 +1086,46 @@ const styles = StyleSheet.create({
     fontSize: type.small.size,
     fontWeight: type.small.weight,
     lineHeight: type.small.lineHeight,
+  },
+  axisFill: {
+    backgroundColor: color.brand.accent,
+    borderRadius: radius.pill,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+  },
+  axisTrack: {
+    backgroundColor: color.bg.overlay,
+    borderRadius: radius.pill,
+    height: space.sm,
+    overflow: 'hidden',
+  },
+  axisValue: {
+    color: color.text.primary,
+    fontFamily: type.tabular.family,
+    fontSize: type.caption.size,
+    fontWeight: type.tabular.weight,
+    lineHeight: type.caption.lineHeight,
+  },
+  liveAxisGrid: {
+    gap: space.md,
+  },
+  liveAxisHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  liveAxisItem: {
+    gap: space.xs,
+  },
+  liveAxisPanel: {
+    backgroundColor: color.bg.surfaceAlt,
+    borderColor: color.border.subtle,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: space.md,
+    padding: space.md,
   },
   pillRow: {
     alignItems: 'center',

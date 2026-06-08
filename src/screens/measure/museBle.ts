@@ -503,6 +503,7 @@ export const museBle = {
 
         onTick({
           elapsedSec,
+          // TODO FE-D5 follow-up: derive per-tick bands from real Muse packets.
           sampleBufferLen,
           signalScore,
         });
