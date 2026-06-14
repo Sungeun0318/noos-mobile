@@ -5,6 +5,7 @@ import { AdaptivePlayerScreen } from '@/screens/journey/AdaptivePlayerScreen';
 import { AdaptiveSessionSetupScreen } from '@/screens/journey/AdaptiveSessionSetupScreen';
 import { AdaptiveSummaryScreen } from '@/screens/journey/AdaptiveSummaryScreen';
 import { FeedbackScreen } from '@/screens/journey/FeedbackScreen';
+import { JourneyHomeScreen } from '@/screens/journey/JourneyHomeScreen';
 import { PlanetSelectScreen } from '@/screens/journey/PlanetSelectScreen';
 import { PlayerScreen } from '@/screens/journey/PlayerScreen';
 import { SessionPendingScreen } from '@/screens/journey/SessionPendingScreen';
@@ -12,6 +13,7 @@ import type { PlanetId } from '@/theme';
 import { color } from '@/theme';
 
 export type JourneyStackParamList = {
+  'Journey/Home': undefined;
   'Journey/PlanetSelect': undefined;
   'Journey/AdaptiveSetup': { recommendedPlanet?: PlanetId } | undefined;
   'Journey/PendingSession': { sessionId: string };
@@ -27,6 +29,7 @@ const Stack = createNativeStackNavigator<JourneyStackParamList>();
 export function JourneyStack() {
   return (
     <Stack.Navigator
+      initialRouteName="Journey/Home"
       screenOptions={{
         contentStyle: { backgroundColor: color.bg.base },
         headerStyle: { backgroundColor: color.bg.surface },
@@ -34,6 +37,11 @@ export function JourneyStack() {
         headerTitleStyle: { color: color.text.primary },
       }}
     >
+      <Stack.Screen
+        component={JourneyHomeScreen}
+        name="Journey/Home"
+        options={{ title: 'Journey' }}
+      />
       <Stack.Screen
         component={PlanetSelectScreen}
         name="Journey/PlanetSelect"

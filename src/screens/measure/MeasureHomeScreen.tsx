@@ -3,7 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
-import { Button, Card } from '@/components/ui';
+import { Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { MeasureStackParamList } from '@/navigation/MeasureStack';
 import { useDeviceStore, type MuseStatus } from '@/stores/deviceStore';
@@ -54,23 +54,6 @@ export function MeasureHomeScreen() {
 
         <DeviceStatusInline status={muse.status} signalQuality={muse.signalQuality} />
 
-        <Card level={2} padding="xl" variant="glass">
-          <View style={styles.adaptiveCard}>
-            <View style={styles.adaptiveCopy}>
-              <Text style={styles.cardTitle}>적응형 세션 시작</Text>
-              <Text style={styles.description}>
-                Muse 신호를 5분 단위로 읽고, 다음 세그먼트 생성 상태를 플레이어에서 확인합니다.
-              </Text>
-            </View>
-            <Button
-              fullWidth
-              label="적응형 세션 시작"
-              onPress={openAdaptiveSetup}
-              size="lg"
-            />
-          </View>
-        </Card>
-
         <View style={styles.stack}>
           <MeasureMethodCard
             description="Muse 연결 후 EEG만 측정하거나, 설문을 더해 hybrid 결과로 진행합니다."
@@ -87,6 +70,16 @@ export function MeasureHomeScreen() {
             tag="검증 설문"
           />
         </View>
+
+        <Card level={1} onPress={openAdaptiveSetup} padding="md" variant="compact">
+          <View style={styles.adaptiveLinkRow}>
+            <View style={styles.cardStack}>
+              <Text style={styles.linkTitle}>세션을 바로 시작할 수도 있어요</Text>
+              <Text style={styles.linkBody}>실시간 적응형 세션 설정으로 이동</Text>
+            </View>
+            <Text style={styles.linkArrow}>이동</Text>
+          </View>
+        </Card>
       </ScrollView>
     </ScreenBackdrop>
   );
@@ -170,11 +163,11 @@ function MethodIcon({ method }: { method: MeasureMethod }) {
 }
 
 const styles = StyleSheet.create({
-  adaptiveCard: {
-    gap: space.lg,
-  },
-  adaptiveCopy: {
-    gap: space.sm,
+  adaptiveLinkRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: space.md,
+    justifyContent: 'space-between',
   },
   cardHeader: {
     alignItems: 'center',
@@ -200,6 +193,27 @@ const styles = StyleSheet.create({
   content: {
     gap: space.xl,
     padding: space.xl,
+  },
+  linkArrow: {
+    color: color.brand.accent,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    lineHeight: type.caption.lineHeight,
+  },
+  linkBody: {
+    color: color.text.tertiary,
+    fontFamily: type.small.family,
+    fontSize: type.small.size,
+    fontWeight: type.small.weight,
+    lineHeight: type.small.lineHeight,
+  },
+  linkTitle: {
+    color: color.text.secondary,
+    fontFamily: type.bodyMd.family,
+    fontSize: type.bodyMd.size,
+    fontWeight: type.bodyMd.weight,
+    lineHeight: type.bodyMd.lineHeight,
   },
   methodIcon: {
     alignItems: 'center',
