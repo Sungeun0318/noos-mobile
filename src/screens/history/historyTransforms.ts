@@ -20,6 +20,7 @@ export function historyFromActiveSession(
       ? {
           audioId: active.audio.audioId,
           durationSec: active.audio.durationSec,
+          streamPath: active.audio.streamPath,
         }
       : null,
     completedAt,
@@ -41,6 +42,7 @@ export function activeFromHistorySession(session: HistorySession): ActiveSession
       ? {
           audioId: session.audio.audioId,
           durationSec: session.audio.durationSec,
+          streamPath: session.audio.streamPath,
         }
       : null,
     durationSec: session.durationSec,
@@ -77,6 +79,7 @@ export function historyFromSessionGetResponse(response: SessionGetResponse): His
       ? {
           audioId: response.audio.audioId,
           durationSec: response.audio.durationSec,
+          streamPath: response.audio.streamPath,
         }
       : null,
     completedAt,

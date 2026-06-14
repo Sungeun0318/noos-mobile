@@ -15,6 +15,7 @@ export interface HistoryFeedbackSummary {
 export interface HistoryAudioSummary {
   audioId: string;
   durationSec: number;
+  streamPath?: string | null;
 }
 
 export interface HistorySession {

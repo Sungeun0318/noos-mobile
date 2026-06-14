@@ -31,6 +31,39 @@ describe('resolveAudioSource', () => {
     expect(resolveAudioSource(activeSession, 99)).toEqual({ uri: 'https://example.com/audio.wav' });
   });
 
+  it('uses signed streamPath before streamUrl when present', () => {
+    useSettingsStore.getState().setBackendBaseUrl('http://127.0.0.1:8080/');
+
+    expect(
+      resolveAudioSource(
+        {
+          ...activeSession,
+          audio: {
+            ...activeSession.audio!,
+            streamPath: '/api/mobile/audio/audio-test?exp=123&sig=signed',
+            streamUrl: 'https://example.com/legacy.wav',
+          },
+        },
+        99,
+      ),
+    ).toEqual({ uri: 'http://127.0.0.1:8080/api/mobile/audio/audio-test?exp=123&sig=signed' });
+  });
+
+  it('uses absolute signed streamPath as player uri sources', () => {
+    expect(
+      resolveAudioSource(
+        {
+          ...activeSession,
+          audio: {
+            ...activeSession.audio!,
+            streamPath: 'https://cdn.example.com/api/mobile/audio/audio-test?exp=123&sig=signed',
+          },
+        },
+        99,
+      ),
+    ).toEqual({ uri: 'https://cdn.example.com/api/mobile/audio/audio-test?exp=123&sig=signed' });
+  });
+
   it('resolves relative backend audio URLs against backendBaseUrl', () => {
     useSettingsStore.getState().setBackendBaseUrl('http://127.0.0.1:8080/');
 

@@ -154,7 +154,8 @@ export interface SessionError {
 
 export interface SessionAudio {
   audioId: string;
-  streamUrl?: string;
+  streamUrl?: string | null;
+  streamPath?: string | null;
   durationSec: number;
 }
 
@@ -212,6 +213,7 @@ export interface SessionListItem {
   audio: {
     audioId: string;
     durationSec: number;
+    streamPath?: string | null;
   } | null;
   feedbackSummary: {
     musicFit: number;

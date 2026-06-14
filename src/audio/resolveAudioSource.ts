@@ -18,7 +18,20 @@ export function resolveAudioSource(
   fallback: AudioSource = sampleAudioSource,
 ): AudioSource {
   const audio = activeSession?.audio;
+  const streamPath = audio?.streamPath;
   const streamUrl = audio?.streamUrl;
+
+  if (streamPath && remoteAudioUrlPattern.test(streamPath)) {
+    return { uri: streamPath };
+  }
+
+  if (streamPath?.startsWith('/')) {
+    const backendBaseUrl = getBackendBaseUrl();
+
+    if (backendBaseUrl) {
+      return { uri: `${backendBaseUrl}${streamPath}` };
+    }
+  }
 
   if (streamUrl && remoteAudioUrlPattern.test(streamUrl)) {
     return { uri: streamUrl };
