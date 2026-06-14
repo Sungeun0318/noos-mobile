@@ -2,7 +2,15 @@ import { createMMKV } from 'react-native-mmkv';
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 
-import type { CurrentState, EegBands, MeasureEeg, MeasureResponse, MeasureSource, MeasureSurvey } from '@/api/types';
+import type {
+  CurrentState,
+  EegBands,
+  MeasureEeg,
+  MeasureResponse,
+  MeasureSource,
+  MeasureSurvey,
+  RecognitionDetail,
+} from '@/api/types';
 import { PLANETS, type PlanetId } from '@/theme';
 
 export interface SurveyDraft {
@@ -23,6 +31,7 @@ export interface StateStoreShape {
   confidence: number | null;
   source: MeasureSource | null;
   eegBands: EegBands | null;
+  recognition: RecognitionDetail | null;
   measuredAt: string | null;
   intentText: string | null;
   setSurveyDraft(survey: MeasureSurvey | null): void;
@@ -77,6 +86,7 @@ const initialState = {
   confidence: null,
   source: null,
   eegBands: null,
+  recognition: null,
   measuredAt: null,
   intentText: null,
 };
@@ -98,6 +108,7 @@ export const useStateStore = create<StateStoreShape>()(
           confidence: response.confidence,
           source: response.source,
           eegBands: response.source === 'eeg' || response.source === 'hybrid' ? eeg?.bands ?? null : null,
+          recognition: response.recognition ?? null,
           measuredAt: response.measuredAt,
           intentText: surveyDraft?.intentText ?? null,
         });
@@ -116,6 +127,7 @@ export const useStateStore = create<StateStoreShape>()(
         confidence: state.confidence,
         source: state.source,
         eegBands: state.eegBands,
+        recognition: state.recognition,
         measuredAt: state.measuredAt,
         intentText: state.intentText,
       }),

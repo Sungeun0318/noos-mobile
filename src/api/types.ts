@@ -93,6 +93,28 @@ export interface MeasureResponse {
     eeg: number;
   };
   measuredAt: string;
+  recognition?: RecognitionDetail | null;
+}
+
+export interface RecognitionDetail {
+  dominantState: string | null;
+  axes: RecognitionAxisDetail[];
+  quality: RecognitionQuality | null;
+  bands: EegBands | null;
+}
+
+export interface RecognitionAxisDetail {
+  key: keyof CurrentState;
+  score: number;
+  level: string | null;
+  confidence: number;
+  rationale: string | null;
+}
+
+export interface RecognitionQuality {
+  usable: boolean;
+  score: number;
+  warnings: string[];
 }
 
 export interface EnqueueSessionRequest {
