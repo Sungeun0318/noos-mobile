@@ -11,6 +11,7 @@ import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { HistoryStackParamList } from '@/navigation/HistoryStack';
 import { listHistory } from '@/screens/history/historyGateway';
+import { labelForAdaptiveModeKey } from '@/screens/journey/adaptiveSessionMode';
 import {
   listHistorySessions,
   useHistoryStore,
@@ -126,6 +127,7 @@ export function HistoryListScreen({ navigation }: HistoryListProps) {
 function HistoryCard({ session, onPress }: { session: HistorySession; onPress: () => void }) {
   const planet = PLANETS[session.planet];
   const adaptive = session.kind === 'adaptive';
+  const adaptiveModeLabel = labelForAdaptiveModeKey(session.adaptiveMode);
 
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
@@ -137,6 +139,7 @@ function HistoryCard({ session, onPress }: { session: HistorySession; onPress: (
               <Text style={styles.cardTitle}>{session.summary?.title ?? planet.trackName}</Text>
               <View style={styles.pillRow}>
                 {adaptive ? <Text style={styles.kindPill}>적응형</Text> : null}
+                {adaptiveModeLabel ? <Text style={styles.modePill}>{adaptiveModeLabel}</Text> : null}
                 <Text style={styles.durationPill}>{formatDuration(session.durationSec)}</Text>
               </View>
             </View>
@@ -265,6 +268,13 @@ const styles = StyleSheet.create({
   },
   kindPill: {
     color: color.text.primary,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    lineHeight: type.caption.lineHeight,
+  },
+  modePill: {
+    color: color.text.secondary,
     fontFamily: type.caption.family,
     fontSize: type.caption.size,
     fontWeight: type.caption.weight,

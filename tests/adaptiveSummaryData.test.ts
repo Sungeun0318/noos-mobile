@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { AdaptiveSessionResponse } from '@/api/adaptiveTypes';
-import { buildAdaptiveSummaryData } from '@/screens/journey/adaptiveSummaryData';
+import {
+  buildAdaptiveSummaryData,
+  getAdaptiveSummaryEmptyText,
+} from '@/screens/journey/adaptiveSummaryData';
 
 function adaptiveSession(): AdaptiveSessionResponse {
   return {
@@ -112,7 +115,7 @@ function adaptiveSession(): AdaptiveSessionResponse {
 
 describe('adaptiveSummaryData', () => {
   it('derives session totals, adjustment count, and axis changes', () => {
-    const summary = buildAdaptiveSummaryData(adaptiveSession());
+    const summary = buildAdaptiveSummaryData(adaptiveSession(), { simulationMode: false });
 
     expect(summary).toMatchObject({
       adjustmentCount: 1,
@@ -131,6 +134,10 @@ describe('adaptiveSummaryData', () => {
       key: 'relaxationLevel',
     });
     expect(summary.graphData.hasData).toBe(true);
+    expect(summary.mode).toMatchObject({
+      key: 'realEeg',
+      label: '실시간 EEG',
+    });
   });
 
   it('handles a session without windows or generated segments', () => {
@@ -139,7 +146,7 @@ describe('adaptiveSummaryData', () => {
       recentWindows: [],
       segments: [],
     };
-    const summary = buildAdaptiveSummaryData(session);
+    const summary = buildAdaptiveSummaryData(session, { simulationMode: true });
 
     expect(summary.adjustmentCount).toBe(0);
     expect(summary.axisChanges).toEqual([]);
@@ -147,5 +154,23 @@ describe('adaptiveSummaryData', () => {
     expect(summary.hasWindows).toBe(false);
     expect(summary.timeline).toEqual([]);
     expect(summary.totalDurationSec).toBe(720);
+    expect(summary.mode.key).toBe('simEeg');
+    expect(getAdaptiveSummaryEmptyText(summary.mode, 'axis')).toBe(
+      '체험 모드 · 실시간 EEG 적응 데이터가 없습니다.',
+    );
+  });
+
+  it('keeps real EEG empty copy distinct from experience modes', () => {
+    const summary = buildAdaptiveSummaryData(
+      {
+        ...adaptiveSession(),
+        recentWindows: [],
+      },
+      { simulationMode: false },
+    );
+
+    expect(getAdaptiveSummaryEmptyText(summary.mode, 'axis')).toBe('아직 비교할 EEG 윈도우가 부족합니다.');
+    expect(getAdaptiveSummaryEmptyText(summary.mode, 'timeline')).toBe('세션 중 수집된 윈도우가 아직 없습니다.');
+    expect(getAdaptiveSummaryEmptyText(summary.mode, 'bands')).toBe('밴드 기록이 충분하지 않습니다.');
   });
 });

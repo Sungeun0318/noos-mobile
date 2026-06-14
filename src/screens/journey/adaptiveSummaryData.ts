@@ -7,6 +7,10 @@ import type {
 } from '@/api/adaptiveTypes';
 import { normalizeAdaptivePlanet } from '@/api/adaptiveTypes';
 import { buildAdaptiveGraphData, type AdaptiveGraphData, type DeltaDirection } from '@/screens/journey/adaptiveGraphData';
+import {
+  resolveAdaptiveSessionMode,
+  type AdaptiveSessionModeInfo,
+} from '@/screens/journey/adaptiveSessionMode';
 import { PLANETS, type PlanetId } from '@/theme';
 
 export interface AdaptiveAxisChange {
@@ -34,6 +38,7 @@ export interface AdaptiveSummaryData {
   generatedSegmentCount: number;
   graphData: AdaptiveGraphData;
   hasWindows: boolean;
+  mode: AdaptiveSessionModeInfo;
   planet: PlanetId;
   planetTitle: string;
   segmentCount: number;
@@ -51,11 +56,17 @@ const axisMeta: Array<{ key: keyof AdaptiveSixAxis; label: string }> = [
   { key: 'mentalWorkload', label: '인지 부하' },
 ];
 
-export function buildAdaptiveSummaryData(session: AdaptiveSessionResponse): AdaptiveSummaryData {
+export type AdaptiveSummaryEmptySection = 'axis' | 'timeline' | 'bands';
+
+export function buildAdaptiveSummaryData(
+  session: AdaptiveSessionResponse,
+  options: { simulationMode?: boolean } = {},
+): AdaptiveSummaryData {
   const windows = sortWindows(session.recentWindows);
   const firstState = firstWindowState(windows);
   const lastState = lastWindowState(windows);
   const planet = normalizeAdaptivePlanet(session.currentPlanet ?? session.initialPlanet);
+  const mode = resolveAdaptiveSessionMode(session.seedSource, options.simulationMode ?? false);
 
   return {
     adjustmentCount: windows.filter((window) => window.adaptiveAction === 'crossfade').length,
@@ -63,6 +74,7 @@ export function buildAdaptiveSummaryData(session: AdaptiveSessionResponse): Adap
     generatedSegmentCount: countGeneratedSegments(session.segments),
     graphData: buildAdaptiveGraphData(windows),
     hasWindows: windows.length > 0,
+    mode,
     planet,
     planetTitle: PLANETS[planet].title,
     segmentCount: session.segments.length,
@@ -77,6 +89,25 @@ export function buildAdaptiveSummaryData(session: AdaptiveSessionResponse): Adap
     })),
     totalDurationSec: totalDurationSec(session),
   };
+}
+
+export function getAdaptiveSummaryEmptyText(
+  mode: AdaptiveSessionModeInfo,
+  section: AdaptiveSummaryEmptySection,
+) {
+  if (mode.isExperience) {
+    return '체험 모드 · 실시간 EEG 적응 데이터가 없습니다.';
+  }
+
+  if (section === 'axis') {
+    return '아직 비교할 EEG 윈도우가 부족합니다.';
+  }
+
+  if (section === 'timeline') {
+    return '세션 중 수집된 윈도우가 아직 없습니다.';
+  }
+
+  return '밴드 기록이 충분하지 않습니다.';
 }
 
 function buildAxisChanges(first: AdaptiveSixAxis, last: AdaptiveSixAxis): AdaptiveAxisChange[] {

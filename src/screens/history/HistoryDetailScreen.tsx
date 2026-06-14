@@ -13,6 +13,7 @@ import { noosTelemetry } from '@/lib/telemetry';
 import type { HistoryStackParamList } from '@/navigation/HistoryStack';
 import { getHistory } from '@/screens/history/historyGateway';
 import { activeFromHistorySession } from '@/screens/history/historyTransforms';
+import { labelForAdaptiveModeKey } from '@/screens/journey/adaptiveSessionMode';
 import { useHistoryStore, type HistorySession } from '@/stores/historyStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -127,12 +128,17 @@ export function HistoryDetailScreen({ navigation, route }: HistoryDetailProps) {
 
 function SessionMeta({ session }: { session: HistorySession }) {
   const adaptive = session.kind === 'adaptive';
+  const adaptiveModeLabel = labelForAdaptiveModeKey(session.adaptiveMode);
 
   return (
     <Card level={1} padding="lg" variant="glass">
       <View style={styles.metaStack}>
         <Text style={styles.cardTitle}>세션 정보</Text>
-        {adaptive ? <Text style={styles.kindText}>적응형 세션</Text> : null}
+        {adaptive ? (
+          <Text style={styles.kindText}>
+            적응형 세션{adaptiveModeLabel ? ` · ${adaptiveModeLabel}` : ''}
+          </Text>
+        ) : null}
         <Text style={styles.bodyText}>
           {formatDateTime(session.completedAt)} · {Math.round(session.durationSec / 60)}분
         </Text>

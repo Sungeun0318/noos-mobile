@@ -9,8 +9,13 @@ import { PlanetHero } from '@/components/PlanetHero';
 import { Button, Card } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
-import { buildAdaptiveSummaryData, type AdaptiveAxisChange } from '@/screens/journey/adaptiveSummaryData';
+import {
+  buildAdaptiveSummaryData,
+  getAdaptiveSummaryEmptyText,
+  type AdaptiveAxisChange,
+} from '@/screens/journey/adaptiveSummaryData';
 import { useAdaptiveSessionStore } from '@/stores/adaptiveSessionStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { color, radius, space, type } from '@/theme';
 
 type AdaptiveSummaryProps = NativeStackScreenProps<JourneyStackParamList, 'Journey/AdaptiveSummary'>;
@@ -21,14 +26,15 @@ export function AdaptiveSummaryScreen({ navigation, route }: AdaptiveSummaryProp
   const segments = useAdaptiveSessionStore((state) => state.segments);
   const recentWindows = useAdaptiveSessionStore((state) => state.recentWindows);
   const clearAdaptiveSession = useAdaptiveSessionStore((state) => state.clear);
+  const simulationMode = useSettingsStore((state) => state.simulationMode);
   const activeMatchesRoute = session?.sessionId === route.params.sessionId;
   const summarySession = useMemo(
     () => (session ? { ...session, recentWindows, segments } : null),
     [recentWindows, segments, session],
   );
   const summary = useMemo(
-    () => (summarySession ? buildAdaptiveSummaryData(summarySession) : null),
-    [summarySession],
+    () => (summarySession ? buildAdaptiveSummaryData(summarySession, { simulationMode }) : null),
+    [simulationMode, summarySession],
   );
 
   useEffect(() => {
@@ -80,8 +86,11 @@ export function AdaptiveSummaryScreen({ navigation, route }: AdaptiveSummaryProp
         <PlanetHero imageSize={space['5xl']} planet={summary.planet}>
           <Text style={styles.eyebrow}>Adaptive Summary</Text>
           <Text style={styles.title}>{summary.planetTitle} 세션 요약</Text>
+          <Text style={styles.modePill}>{summary.mode.label}</Text>
           <Text style={styles.bodyText}>
-            EEG 흐름을 기준으로 음악 전환과 상태 변화를 정리했습니다.
+            {summary.mode.isExperience
+              ? summary.mode.description
+              : 'EEG 흐름을 기준으로 음악 전환과 상태 변화를 정리했습니다.'}
           </Text>
         </PlanetHero>
 
@@ -101,7 +110,7 @@ export function AdaptiveSummaryScreen({ navigation, route }: AdaptiveSummaryProp
                 ))}
               </View>
             ) : (
-              <Text style={styles.bodyText}>아직 비교할 EEG 윈도우가 부족합니다.</Text>
+              <Text style={styles.bodyText}>{getAdaptiveSummaryEmptyText(summary.mode, 'axis')}</Text>
             )}
           </View>
         </Card>
@@ -131,7 +140,7 @@ export function AdaptiveSummaryScreen({ navigation, route }: AdaptiveSummaryProp
                 ))}
               </View>
             ) : (
-              <Text style={styles.bodyText}>세션 중 수집된 윈도우가 아직 없습니다.</Text>
+              <Text style={styles.bodyText}>{getAdaptiveSummaryEmptyText(summary.mode, 'timeline')}</Text>
             )}
           </View>
         </Card>
@@ -142,7 +151,7 @@ export function AdaptiveSummaryScreen({ navigation, route }: AdaptiveSummaryProp
             <Text style={styles.bodyText}>
               {summary.graphData.hasData
                 ? `Alpha, Beta, Theta, Delta, Gamma 흐름 ${summary.graphData.timeline.length}개를 저장했습니다.`
-                : '밴드 기록이 충분하지 않습니다.'}
+                : getAdaptiveSummaryEmptyText(summary.mode, 'bands')}
             </Text>
           </View>
         </Card>
@@ -267,6 +276,20 @@ const styles = StyleSheet.create({
     fontSize: type.small.size,
     fontWeight: type.small.weight,
     lineHeight: type.small.lineHeight,
+  },
+  modePill: {
+    alignSelf: 'flex-start',
+    backgroundColor: color.bg.surfaceAlt,
+    borderColor: color.border.default,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    color: color.brand.accent,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    lineHeight: type.caption.lineHeight,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs,
   },
   sectionHeader: {
     alignItems: 'center',
