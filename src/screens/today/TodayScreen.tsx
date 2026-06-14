@@ -12,6 +12,7 @@ import { PlanetImage } from '@/components/PlanetImage';
 import { noosTelemetry } from '@/lib/telemetry';
 import { useHealth } from '@/queries/useHealth';
 import { usePollSession } from '@/queries/usePollSession';
+import { todayJourneyRoute } from '@/screens/journey/journeyHomeLogic';
 import { useAuthStore } from '@/stores/authStore';
 import {
   latestHistorySession,
@@ -21,15 +22,27 @@ import {
 import { useSessionStore, type PendingSession } from '@/stores/sessionStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useStateStore } from '@/stores/stateStore';
-import { color, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
+import { color, PLANET_COLORS, PLANETS, radius, space, type, type PlanetId } from '@/theme';
 
 type TabNavigation = {
   navigate: (
     screen: 'Measure' | 'Journey' | 'History' | 'Settings',
-    params?: {
-      screen: 'Journey/Player' | 'History/Detail';
-      params: { sessionId: string };
-    },
+    params?:
+      | {
+          screen: 'Journey/PlanetSelect';
+        }
+      | {
+          screen: 'Journey/AdaptiveSetup';
+          params?: { recommendedPlanet?: PlanetId };
+        }
+      | {
+          screen: 'Journey/Player';
+          params: { sessionId: string };
+        }
+      | {
+          screen: 'History/Detail';
+          params: { sessionId: string };
+        },
   ) => void;
 };
 
@@ -56,9 +69,17 @@ export function TodayScreen() {
     navigation.navigate('Measure');
   }
 
-  function goStartSession() {
+  function goSingleSession() {
     noosTelemetry.track('today_start_session_tap', { from: 'cta' });
-    navigation.navigate('Journey');
+    navigation.navigate('Journey', { screen: 'Journey/PlanetSelect' });
+  }
+
+  function goAdaptiveSession() {
+    noosTelemetry.track('today_adaptive_cta_tap', {
+      hasRecommendedPlanet: !!recommendedPlanet,
+      planet: recommendedPlanet ?? null,
+    });
+    navigation.navigate('Journey', todayJourneyRoute(recommendedPlanet));
   }
 
   if (!backendBaseUrl) {
@@ -91,8 +112,9 @@ export function TodayScreen() {
         <GuestPromptCard />
         <TodayStateHero
           measuredAt={measuredAt}
+          onAdaptiveSession={goAdaptiveSession}
           onMeasure={goMeasure}
-          onStartSession={goStartSession}
+          onSingleSession={goSingleSession}
           planet={recommendedPlanet}
           source={source}
           stateLabel={stateLabel}
@@ -163,15 +185,17 @@ function TodayStateHero({
   measuredAt,
   source,
   planet: measuredPlanet,
+  onAdaptiveSession,
   onMeasure,
-  onStartSession,
+  onSingleSession,
 }: {
   stateLabel: string | null;
   measuredAt: string | null;
   source: string | null;
   planet: keyof typeof PLANETS | null;
+  onAdaptiveSession: () => void;
   onMeasure: () => void;
-  onStartSession: () => void;
+  onSingleSession: () => void;
 }) {
   const planetId = measuredPlanet ?? 'neptune';
   const planet = PLANETS[planetId];
@@ -188,7 +212,13 @@ function TodayStateHero({
           </View>
           <View style={styles.heroActions}>
             <Button fullWidth label="내 상태 측정하기" onPress={onMeasure} size="lg" />
-            <Button fullWidth label="지금 세션 시작" onPress={onStartSession} variant="secondary" />
+            <Button fullWidth label="음악 세션 만들기" onPress={onSingleSession} variant="secondary" />
+            <Button
+              fullWidth
+              label="실시간 적응형 세션 시작"
+              onPress={onAdaptiveSession}
+              variant="secondary"
+            />
           </View>
         </View>
       </Card>
@@ -214,7 +244,15 @@ function TodayStateHero({
           <Button label="다시 측정" onPress={onMeasure} size="sm" variant="secondary" />
         </View>
       </Card>
-      <Button fullWidth label="지금 세션 시작" onPress={onStartSession} size="lg" />
+      <View style={styles.heroActions}>
+        <Button fullWidth label="음악 세션 만들기" onPress={onSingleSession} size="lg" />
+        <Button
+          fullWidth
+          label="실시간 적응형 세션 시작"
+          onPress={onAdaptiveSession}
+          variant="secondary"
+        />
+      </View>
     </View>
   );
 }
