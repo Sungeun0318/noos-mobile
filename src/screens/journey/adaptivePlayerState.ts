@@ -58,24 +58,24 @@ export function pickCurrentSegment(
 
 export function getSegmentStatusLabel(segment: AdaptiveSegmentView | null) {
   if (!segment) {
-    return '세그먼트 대기 중';
+    return '현재 음악 대기 중';
   }
 
   switch (segment.status) {
     case 'pending':
-      return '생성 대기 중';
+      return '현재 음악 생성 대기 중';
     case 'generating':
-      return '음악 생성 중';
+      return '현재 음악 생성 중';
     case 'ready':
-      return '재생 준비 완료';
+      return '현재 음악 재생 준비 완료';
     case 'playing':
-      return '재생 중';
+      return '현재 음악 재생 중';
     case 'done':
-      return '재생 완료';
+      return '현재 음악 재생 완료';
     case 'failed':
-      return '생성 실패';
+      return '현재 음악 생성 실패';
     default:
-      return '세그먼트 상태 확인 중';
+      return '현재 음악 상태 확인 중';
   }
 }
 
@@ -85,16 +85,16 @@ export function getNextGenState(status: AdaptiveNextGenStatus): {
 } {
   switch (status) {
     case 'pending':
-      return { label: '다음 음악 대기 중', tone: 'working' };
+      return { label: 'EEG 변화 분석 중', tone: 'working' };
     case 'generating':
       return { label: '다음 음악 생성 중', tone: 'working' };
     case 'ready':
-      return { label: '다음 음악 준비됨 · 현재 곡이 끝나면 자동 전환', tone: 'ready' };
+      return { label: '다음 음악 준비 완료 · 현재 곡이 끝나면 자연스럽게 전환됩니다', tone: 'ready' };
     case 'failed':
-      return { label: '다음 음악 실패', tone: 'failed' };
+      return { label: '다음 음악 생성 실패', tone: 'failed' };
     case 'idle':
     default:
-      return { label: '다음 음악 없음', tone: 'idle' };
+      return { label: '다음 음악 대기 중', tone: 'idle' };
   }
 }
 
@@ -103,9 +103,9 @@ export function getWearLabel(status: AdaptiveWearStatus) {
     case 'worn':
       return 'Muse 착용 중';
     case 'uncertain':
-      return '신호 확인 중';
+      return 'Muse 신호 확인 중';
     case 'off':
-      return 'Muse 미착용';
+      return 'Muse 신호가 약해 세션을 일시 정지했어요';
     case 'unknown':
     default:
       return '착용 상태 확인 중';

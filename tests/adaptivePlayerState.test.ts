@@ -50,25 +50,27 @@ function session(currentSegment: AdaptiveSegmentView | null): AdaptiveSessionRes
 
 describe('adaptivePlayerState', () => {
   it('labels segment generation states', () => {
-    expect(getSegmentStatusLabel(segment('pending'))).toBe('생성 대기 중');
-    expect(getSegmentStatusLabel(segment('generating'))).toBe('음악 생성 중');
-    expect(getSegmentStatusLabel(segment('ready', { audioId: 'audio_1' }))).toBe('재생 준비 완료');
+    expect(getSegmentStatusLabel(segment('pending'))).toBe('현재 음악 생성 대기 중');
+    expect(getSegmentStatusLabel(segment('generating'))).toBe('현재 음악 생성 중');
+    expect(getSegmentStatusLabel(segment('ready', { audioId: 'audio_1' }))).toBe('현재 음악 재생 준비 완료');
+    expect(getSegmentStatusLabel(segment('playing', { audioId: 'audio_1' }))).toBe('현재 음악 재생 중');
   });
 
   it('labels next generation states', () => {
-    expect(getNextGenState('idle')).toMatchObject({ label: '다음 음악 없음', tone: 'idle' });
+    expect(getNextGenState('idle')).toMatchObject({ label: '다음 음악 대기 중', tone: 'idle' });
+    expect(getNextGenState('pending')).toMatchObject({ label: 'EEG 변화 분석 중', tone: 'working' });
     expect(getNextGenState('generating')).toMatchObject({ label: '다음 음악 생성 중', tone: 'working' });
     expect(getNextGenState('ready')).toMatchObject({
-      label: '다음 음악 준비됨 · 현재 곡이 끝나면 자동 전환',
+      label: '다음 음악 준비 완료 · 현재 곡이 끝나면 자연스럽게 전환됩니다',
       tone: 'ready',
     });
-    expect(getNextGenState('failed')).toMatchObject({ label: '다음 음악 실패', tone: 'failed' });
+    expect(getNextGenState('failed')).toMatchObject({ label: '다음 음악 생성 실패', tone: 'failed' });
   });
 
   it('labels wear and signal indicators', () => {
     expect(getWearLabel('worn')).toBe('Muse 착용 중');
-    expect(getWearLabel('uncertain')).toBe('신호 확인 중');
-    expect(getWearLabel('off')).toBe('Muse 미착용');
+    expect(getWearLabel('uncertain')).toBe('Muse 신호 확인 중');
+    expect(getWearLabel('off')).toBe('Muse 신호가 약해 세션을 일시 정지했어요');
     expect(getSignalLabel(null)).toBe('신호 대기');
     expect(getSignalLabel(0.876)).toBe('신호 88%');
   });
