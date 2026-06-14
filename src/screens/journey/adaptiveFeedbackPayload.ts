@@ -5,6 +5,7 @@ import type {
   AdaptiveSixAxis,
 } from '@/api/adaptiveTypes';
 import { normalizeAdaptivePlanet } from '@/api/adaptiveTypes';
+import type { AdaptiveSessionModeKey } from '@/api/adaptiveTypes';
 import type { CurrentState } from '@/api/types';
 import type { HistoryFeedbackSummary, HistorySession } from '@/stores/historyStore';
 import { PLANETS } from '@/theme';
@@ -46,6 +47,7 @@ export function historyFromAdaptiveSession(
   session: AdaptiveSessionResponse,
   feedbackSummary: HistoryFeedbackSummary | null,
   completedAt = new Date().toISOString(),
+  adaptiveMode: AdaptiveSessionModeKey | null = null,
 ): HistorySession {
   const planet = normalizeAdaptivePlanet(session.currentPlanet ?? session.initialPlanet);
   const planetMeta = PLANETS[planet];
@@ -53,6 +55,7 @@ export function historyFromAdaptiveSession(
   const latestWindow = session.recentWindows[0] ?? null;
 
   return {
+    adaptiveMode,
     audio: readyAudioSegment?.audioId
       ? {
           audioId: readyAudioSegment.audioId,

@@ -2,6 +2,8 @@ import type { PlanetId } from '@/theme';
 
 export type AdaptiveSeedSource = 'survey' | 'eeg' | 'hybrid' | 'none';
 
+export type AdaptiveSessionModeKey = 'realEeg' | 'simEeg' | 'survey' | 'none';
+
 export type AdaptiveSessionStatus = 'active' | 'paused' | 'ended' | 'failed';
 
 export type AdaptiveSegmentStatus =

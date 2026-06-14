@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 
 import type { CurrentState, SessionSummary } from '@/api/types';
+import type { AdaptiveSessionModeKey } from '@/api/adaptiveTypes';
 import type { PlanetId } from '@/theme';
 
 export interface HistoryFeedbackSummary {
@@ -20,6 +21,7 @@ export interface HistoryAudioSummary {
 
 export interface HistorySession {
   kind?: 'single' | 'adaptive';
+  adaptiveMode?: AdaptiveSessionModeKey | null;
   sessionId: string;
   planet: PlanetId;
   durationSec: number;

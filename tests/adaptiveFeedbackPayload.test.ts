@@ -123,6 +123,7 @@ describe('adaptiveFeedbackPayload', () => {
       adaptiveSession(),
       adaptiveFeedbackSummaryFromPayload(payload),
       '2026-06-01T00:20:00Z',
+      'simEeg',
     );
 
     expect(history).toMatchObject({
@@ -130,6 +131,7 @@ describe('adaptiveFeedbackPayload', () => {
         audioId: 'audio_next',
         durationSec: 120,
       },
+      adaptiveMode: 'simEeg',
       completedAt: '2026-06-01T00:12:00Z',
       durationSec: 240,
       feedbackSummary: null,

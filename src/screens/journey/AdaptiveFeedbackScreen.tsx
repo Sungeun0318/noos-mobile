@@ -13,8 +13,10 @@ import {
   buildAdaptiveFeedbackPayload,
   historyFromAdaptiveSession,
 } from '@/screens/journey/adaptiveFeedbackPayload';
+import { resolveAdaptiveSessionMode } from '@/screens/journey/adaptiveSessionMode';
 import { useAdaptiveSessionStore } from '@/stores/adaptiveSessionStore';
 import { useHistoryStore } from '@/stores/historyStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { color, motion, space, radius, type } from '@/theme';
 
 type AdaptiveFeedbackProps = NativeStackScreenProps<JourneyStackParamList, 'Journey/AdaptiveFeedback'>;
@@ -31,6 +33,7 @@ export function AdaptiveFeedbackScreen({ navigation, route }: AdaptiveFeedbackPr
   const insets = useSafeAreaInsets();
   const session = useAdaptiveSessionStore((state) => state.session);
   const upsertHistory = useHistoryStore((state) => state.upsert);
+  const simulationMode = useSettingsStore((state) => state.simulationMode);
   const [ratings, setRatings] = useState<Record<AdaptiveFeedbackKey, number>>({
     focusRelaxHelp: 0.5,
     musicFit: 0.5,
@@ -48,7 +51,9 @@ export function AdaptiveFeedbackScreen({ navigation, route }: AdaptiveFeedbackPr
 
   function finish(payload: ReturnType<typeof buildAdaptiveFeedbackPayload>) {
     if (session) {
-      upsertHistory(historyFromAdaptiveSession(session, adaptiveFeedbackSummaryFromPayload(payload)));
+      const mode = resolveAdaptiveSessionMode(session.seedSource, simulationMode);
+
+      upsertHistory(historyFromAdaptiveSession(session, adaptiveFeedbackSummaryFromPayload(payload), undefined, mode.key));
     }
 
     navigation.navigate('Journey/AdaptiveSummary', { sessionId: route.params.sessionId });
