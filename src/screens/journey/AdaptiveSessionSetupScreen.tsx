@@ -11,12 +11,17 @@ import { Button, Card, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
 import {
+  type AdaptiveSetupMethod,
   buildAdaptiveStartRequest,
+  getAdaptiveSetupCtaState,
   getAdaptiveSeedSource,
+  isMuseConnected,
   toBackendAdaptivePlanet,
 } from '@/screens/journey/adaptiveSetupLogic';
+import { MuseConnectSheet } from '@/screens/journey/MuseConnectSheet';
 import { useAdaptiveSessionStore } from '@/stores/adaptiveSessionStore';
 import { useDeviceStore, type MuseStatus } from '@/stores/deviceStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { useStateStore } from '@/stores/stateStore';
 import { color, PLANET_COLORS, PLANETS, radius, space, type, type PlanetId } from '@/theme';
 
@@ -38,19 +43,46 @@ const museStatusLabels: Record<MuseStatus, string> = {
 export function AdaptiveSessionSetupScreen({ navigation, route }: AdaptiveSetupProps) {
   const insets = useSafeAreaInsets();
   const recommendedPlanet = useStateStore((state) => state.recommendedPlanet);
+  const simulationMode = useSettingsStore((state) => state.simulationMode);
+  const setSimulationMode = useSettingsStore((state) => state.setSimulationMode);
   const museStatus = useDeviceStore((state) => state.muse.status);
+  const museName = useDeviceStore((state) => state.muse.deviceName);
   const signalQuality = useDeviceStore((state) => state.muse.signalQuality);
   const applyStartResponse = useAdaptiveSessionStore((state) => state.applyStartResponse);
   const [selectedPlanet, setSelectedPlanet] = useState<PlanetId>(
     route.params?.recommendedPlanet ?? recommendedPlanet ?? 'neptune',
   );
+  const [selectedMethod, setSelectedMethod] = useState<AdaptiveSetupMethod>(
+    simulationMode ? 'simulationEeg' : 'realEeg',
+  );
+  const [connectSheetOpen, setConnectSheetOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const seedSource = getAdaptiveSeedSource(museStatus);
+  const seedSource = getAdaptiveSeedSource({ method: selectedMethod, museStatus });
+  const ctaState = getAdaptiveSetupCtaState({ method: selectedMethod, museStatus });
   const planetMeta = PLANETS[selectedPlanet];
 
   async function startSession() {
-    const payload = buildAdaptiveStartRequest({ museStatus, planet: selectedPlanet });
+    if (ctaState.action === 'connectMuse') {
+      setSimulationMode(false);
+      setConnectSheetOpen(true);
+      noosTelemetry.track('adaptive_setup_connect_muse_tap', { planet: selectedPlanet });
+      return;
+    }
+
+    if (selectedMethod === 'simulationEeg') {
+      setSimulationMode(true);
+    }
+
+    if (selectedMethod === 'realEeg') {
+      setSimulationMode(false);
+    }
+
+    const payload = buildAdaptiveStartRequest({
+      method: selectedMethod,
+      museStatus,
+      planet: selectedPlanet,
+    });
 
     setSubmitting(true);
     setToast(null);
@@ -61,6 +93,7 @@ export function AdaptiveSessionSetupScreen({ navigation, route }: AdaptiveSetupP
       noosTelemetry.track('adaptive_setup_start_tap', {
         planet: selectedPlanet,
         seedSource: payload.seedSource,
+        setupMethod: selectedMethod,
       });
       navigation.navigate('Journey/AdaptivePlayer', { sessionId: response.sessionId });
     } catch {
@@ -86,7 +119,7 @@ export function AdaptiveSessionSetupScreen({ navigation, route }: AdaptiveSetupP
           <Text style={styles.eyebrow}>적응형 세션</Text>
           <Text style={styles.title}>목표 행성을 선택하세요</Text>
           <Text style={styles.body}>
-            선택한 행성을 목표 분위기로 두고, Muse EEG를 5분마다 읽어 다음 음악을 조정합니다.
+            선택한 행성을 목표 분위기로 두고, 측정 방식에 따라 다음 음악을 조정합니다.
           </Text>
         </View>
 
@@ -97,9 +130,13 @@ export function AdaptiveSessionSetupScreen({ navigation, route }: AdaptiveSetupP
           <Text style={styles.heroMood}>{planetMeta.moodTarget}</Text>
         </PlanetHero>
 
-        <AdaptiveStatusCard
+        <AdaptiveMethodPicker
+          museName={museName}
           museStatus={museStatus}
+          selectedMethod={selectedMethod}
           seedSource={seedSource}
+          setSimulationMode={setSimulationMode}
+          onSelect={setSelectedMethod}
           signalQuality={signalQuality}
         />
 
@@ -125,7 +162,7 @@ export function AdaptiveSessionSetupScreen({ navigation, route }: AdaptiveSetupP
             <Text style={styles.ctaMeta}>{toBackendAdaptivePlanet(selectedPlanet)} 목표로 세션을 시작합니다.</Text>
             <Button
               fullWidth
-              label="적응형 세션 시작"
+              label={ctaState.label}
               loading={submitting}
               onPress={startSession}
               size="lg"
@@ -133,35 +170,119 @@ export function AdaptiveSessionSetupScreen({ navigation, route }: AdaptiveSetupP
           </View>
         </Card>
       </ScrollView>
+      <MuseConnectSheet
+        visible={connectSheetOpen}
+        onClose={() => setConnectSheetOpen(false)}
+        onConnected={() => setSelectedMethod('realEeg')}
+      />
     </ScreenBackdrop>
   );
 }
 
-function AdaptiveStatusCard({
+function AdaptiveMethodPicker({
+  museName,
   museStatus,
+  selectedMethod,
   seedSource,
+  setSimulationMode,
+  onSelect,
   signalQuality,
 }: {
+  museName: string | null;
   museStatus: MuseStatus;
+  selectedMethod: AdaptiveSetupMethod;
   seedSource: string;
+  setSimulationMode: (value: boolean) => void;
+  onSelect: (method: AdaptiveSetupMethod) => void;
   signalQuality: number;
 }) {
-  const connected = museStatus === 'connected' || museStatus === 'measuring';
+  function select(method: AdaptiveSetupMethod) {
+    if (method === 'simulationEeg') {
+      setSimulationMode(true);
+    }
+
+    if (method === 'realEeg') {
+      setSimulationMode(false);
+    }
+
+    onSelect(method);
+    noosTelemetry.track('adaptive_setup_method_select', { method });
+  }
 
   return (
     <Card level={2} padding="lg" variant="glass">
-      <View style={styles.statusRow}>
-        <View style={[styles.statusDot, connected && styles.statusDotOn]} />
-        <View style={styles.cardStack}>
-          <Text style={styles.cardTitle}>Muse 상태</Text>
-          <Text style={styles.body}>{museStatusLabels[museStatus]}</Text>
+      <View style={styles.methodStack}>
+        <View style={styles.statusHeader}>
+          <View style={styles.cardStack}>
+            <Text style={styles.cardTitle}>측정 방식</Text>
+            <Text style={styles.body}>선택한 방식은 세션 시작 seedSource에 반영됩니다.</Text>
+          </View>
+          <View style={styles.statusMetaStack}>
+            <Text style={styles.metaLabel}>seed</Text>
+            <Text style={styles.metaValue}>{seedSource}</Text>
+          </View>
         </View>
-        <View style={styles.statusMetaStack}>
-          <Text style={styles.metaLabel}>{seedSource === 'eeg' ? 'EEG 기반' : '기본 시작'}</Text>
-          <Text style={styles.metaValue}>{connected ? `${Math.round(signalQuality * 100)}%` : '대기'}</Text>
-        </View>
+
+        <MethodOption
+          body={
+            isMuseConnected(museStatus)
+              ? `${museName ?? 'Muse'} 연결됨 · 신호 ${Math.round(signalQuality * 100)}%`
+              : `${museStatusLabels[museStatus]} · 시작 전 연결이 필요합니다.`
+          }
+          label="실 EEG(Muse)"
+          selected={selectedMethod === 'realEeg'}
+          tag="실시간 조정"
+          onPress={() => select('realEeg')}
+        />
+        <MethodOption
+          body="Muse-SIM으로 EEG 캡처와 적응 흐름을 체험합니다."
+          label="시뮬레이션 EEG"
+          selected={selectedMethod === 'simulationEeg'}
+          tag="체험"
+          onPress={() => select('simulationEeg')}
+        />
+        <MethodOption
+          body="설문 seed로만 시작합니다. 실시간 EEG 조정은 진행하지 않습니다."
+          label="설문 기반"
+          selected={selectedMethod === 'survey'}
+          tag="체험 · 실시간 조정 없음"
+          onPress={() => select('survey')}
+        />
       </View>
     </Card>
+  );
+}
+
+function MethodOption({
+  body,
+  label,
+  selected,
+  tag,
+  onPress,
+}: {
+  body: string;
+  label: string;
+  selected: boolean;
+  tag: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.methodOption,
+        selected && styles.methodOptionSelected,
+        pressed && styles.pressed,
+      ]}
+    >
+      <View style={styles.cardStack}>
+        <Text style={styles.methodTitle}>{label}</Text>
+        <Text style={styles.body}>{body}</Text>
+      </View>
+      <Text style={styles.methodTag}>{tag}</Text>
+    </Pressable>
   );
 }
 
@@ -316,6 +437,40 @@ const styles = StyleSheet.create({
     lineHeight: type.tabular.lineHeight,
     textAlign: 'right',
   },
+  methodOption: {
+    alignItems: 'flex-start',
+    backgroundColor: color.bg.surface,
+    borderColor: color.border.subtle,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: space.md,
+    justifyContent: 'space-between',
+    padding: space.md,
+  },
+  methodOptionSelected: {
+    backgroundColor: color.bg.surfaceAlt,
+    borderColor: color.brand.accent,
+  },
+  methodStack: {
+    gap: space.md,
+  },
+  methodTag: {
+    color: color.brand.accent,
+    flexShrink: 0,
+    fontFamily: type.caption.family,
+    fontSize: type.caption.size,
+    fontWeight: type.caption.weight,
+    lineHeight: type.caption.lineHeight,
+    textAlign: 'right',
+  },
+  methodTitle: {
+    color: color.text.primary,
+    fontFamily: type.bodyMd.family,
+    fontSize: type.bodyMd.size,
+    fontWeight: type.bodyMd.weight,
+    lineHeight: type.bodyMd.lineHeight,
+  },
   planetCard: {
     alignItems: 'center',
     backgroundColor: color.bg.glass,
@@ -401,24 +556,16 @@ const styles = StyleSheet.create({
     fontWeight: type.h3.weight,
     lineHeight: type.h3.lineHeight,
   },
-  statusDot: {
-    backgroundColor: color.text.disabled,
-    borderRadius: radius.pill,
-    height: space.md,
-    width: space.md,
-  },
-  statusDotOn: {
-    backgroundColor: color.state.success,
+  statusHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: space.md,
+    justifyContent: 'space-between',
   },
   statusMetaStack: {
     alignItems: 'flex-end',
     flexShrink: 0,
     gap: space.xs,
-  },
-  statusRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space.md,
   },
   title: {
     color: color.text.primary,
