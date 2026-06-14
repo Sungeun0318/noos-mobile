@@ -86,6 +86,7 @@ export interface AdaptiveSegmentView {
   planet: string;
   status: AdaptiveSegmentStatus;
   audioId: string | null;
+  streamPath?: string | null;
   fallback: boolean;
   durationSec: number;
   genStartedAt: string | null;

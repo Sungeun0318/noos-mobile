@@ -7,14 +7,13 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-import type { AdaptiveSegmentView, AdaptiveSixAxis } from '@/api/adaptiveTypes';
+import type { AdaptiveSixAxis } from '@/api/adaptiveTypes';
 import {
   endAdaptiveSession,
   getAdaptiveSession,
   pauseAdaptiveSession,
   resumeAdaptiveSession,
 } from '@/api/adaptiveGateway';
-import { resolveAudioSource } from '@/audio/resolveAudioSource';
 import { createAdaptiveCaptureLoop, type AdaptiveCaptureLoop } from '@/adaptive/adaptiveCaptureEngine';
 import { buildLiveBandSeries, type LiveBandSeries } from '@/adaptive/adaptiveLiveState';
 import { applyAdaptiveWearTransition } from '@/adaptive/adaptiveWearEffects';
@@ -34,6 +33,7 @@ import {
   type BandKey,
   type TimelinePoint,
 } from '@/screens/journey/adaptiveGraphData';
+import { resolveAdaptiveSegmentAudioSource } from '@/screens/journey/adaptiveSegmentAudio';
 import { buildAdaptivePlayerViewModel } from '@/screens/journey/adaptivePlayerState';
 import { buildAdaptivePlaybackPlan } from '@/screens/journey/adaptivePlaybackPlan';
 import { useAdaptiveSessionStore } from '@/stores/adaptiveSessionStore';
@@ -611,19 +611,6 @@ function ProgressBar({ planet, progress }: { planet: PlanetId; progress: number 
       />
     </View>
   );
-}
-
-function resolveAdaptiveSegmentAudioSource(segment: AdaptiveSegmentView | null): AudioSource {
-  if (segment?.status === 'ready' && segment.audioId) {
-    return resolveAudioSource({
-      audio: {
-        audioId: segment.audioId,
-        durationSec: segment.durationSec,
-      },
-    });
-  }
-
-  return resolveAudioSource(null);
 }
 
 function rampVolume(player: AdaptiveAudioPlayer, targetVolume: number, durationMs: number) {
