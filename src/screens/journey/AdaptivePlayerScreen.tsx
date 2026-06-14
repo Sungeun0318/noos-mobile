@@ -500,11 +500,11 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
         <View style={styles.segmentPanel}>
           <View style={styles.segmentHeader}>
             <View>
-              <Text style={styles.label}>현재 세그먼트</Text>
+              <Text style={styles.label}>현재 음악</Text>
               <Text style={styles.segmentTitle}>{viewModel.currentSegmentLabel}</Text>
             </View>
             <StatusPill
-              label={isCrossfading ? '다음 세그먼트 전환 중' : viewModel.nextGenLabel}
+              label={isCrossfading ? '다음 음악으로 전환 중' : viewModel.nextGenLabel}
               tone={isCrossfading ? 'working' : viewModel.nextGenTone}
             />
           </View>
@@ -540,7 +540,7 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
             )}
           </Pressable>
           <Text style={styles.body}>
-            {canPlayCurrent ? '현재 준비된 세그먼트를 재생할 수 있어요.' : '첫 세그먼트가 준비되면 재생할 수 있어요.'}
+            {canPlayCurrent ? '현재 준비된 음악을 재생할 수 있어요.' : '첫 음악이 준비되면 재생할 수 있어요.'}
           </Text>
         </View>
 
@@ -589,9 +589,9 @@ function LightingPill() {
 function WearOffOverlay() {
   return (
     <View style={styles.wearOverlay}>
-      <Text style={styles.segmentTitle}>Muse 착용을 확인해 주세요</Text>
+      <Text style={styles.segmentTitle}>Muse 신호가 약해 세션을 일시 정지했어요</Text>
       <Text style={styles.body}>
-        EEG 신호가 끊겨 세션을 잠시 멈췄습니다. 다시 착용하면 자동으로 이어집니다.
+        다시 착용하면 EEG 신호를 확인한 뒤 세션이 자동으로 이어집니다.
       </Text>
     </View>
   );
