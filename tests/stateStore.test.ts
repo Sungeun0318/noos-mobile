@@ -27,6 +27,7 @@ const response: MeasureResponse = {
   source: 'survey',
   weight: { survey: 1, eeg: 0 },
   measuredAt: '2026-05-20T01:00:00Z',
+  recognition: null,
 };
 
 const eeg: MeasureEeg = {
@@ -102,6 +103,7 @@ describe('stateStore', () => {
       confidence: 0.78,
       source: 'survey',
       eegBands: null,
+      recognition: null,
       intentText: 'code',
     });
 
@@ -115,17 +117,35 @@ describe('stateStore', () => {
       recommendedPlanet: null,
       alternates: [],
       eegBands: null,
+      recognition: null,
     });
   });
 
   it('stores EEG bands for EEG-backed measurements and clears them for survey-only measurements', () => {
-    useStateStore.getState().setFromMeasure({ ...response, source: 'hybrid' }, eeg);
+    const recognition = {
+      dominantState: 'calm_focus',
+      axes: [
+        {
+          key: 'focus_readiness' as const,
+          score: 0.82,
+          level: 'high',
+          confidence: 0.9,
+          rationale: 'alpha and beta support focus',
+        },
+      ],
+      quality: { usable: true, score: 0.88, warnings: [] },
+      bands: eeg.bands,
+    };
+
+    useStateStore.getState().setFromMeasure({ ...response, source: 'hybrid', recognition }, eeg);
 
     expect(useStateStore.getState().eegBands).toEqual(eeg.bands);
+    expect(useStateStore.getState().recognition).toEqual(recognition);
 
     useStateStore.getState().setFromMeasure(response);
 
     expect(useStateStore.getState().eegBands).toBeNull();
+    expect(useStateStore.getState().recognition).toBeNull();
   });
 
   it('clears stale survey draft for EEG-only Muse measurement', () => {
