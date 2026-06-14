@@ -14,11 +14,14 @@ import Animated, {
 import { resolveAudioSource } from '@/audio/resolveAudioSource';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { PlanetImage } from '@/components/PlanetImage';
-import { Button, Toast } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
+import { AudioLoadErrorCard } from '@/screens/journey/AudioLoadErrorCard';
+import { getAudioPlaybackStatus } from '@/screens/journey/audioPlaybackError';
 import { useSessionStore } from '@/stores/sessionStore';
+import { normalizePlanetId } from '@/stores/stateStore';
 import { color, motion, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
 
 type PlayerProps = NativeStackScreenProps<JourneyStackParamList, 'Journey/Player'>;
@@ -42,11 +45,13 @@ const waveformBars: Array<keyof typeof space> = [
 export function PlayerScreen({ navigation, route }: PlayerProps) {
   const insets = useSafeAreaInsets();
   const active = useSessionStore((state) => state.active);
+  const setActive = useSessionStore((state) => state.setActive);
   const setStatus = useSessionStore((state) => state.setStatus);
   const source = useMemo(() => resolveAudioSource(active), [active]);
   const player = useAudioPlayer(source, { updateInterval: 500 });
   const status = useAudioPlayerStatus(player);
   const [playState, setPlayState] = useState<PlayState>('loading');
+  const [retryingAudio, setRetryingAudio] = useState(false);
   const startedRef = useRef(false);
   const endedRef = useRef(false);
   const errorRef = useRef(false);
@@ -54,6 +59,10 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
   const durationSec = status.duration || active?.audio?.durationSec || active?.durationSec || 0;
   const positionSec = status.currentTime || 0;
   const progress = durationSec > 0 ? Math.min(positionSec / durationSec, 1) : 0;
+  const playbackStatus = getAudioPlaybackStatus({
+    hasLoadError: playState === 'error',
+    hasSession: Boolean(activeMatchesRoute && active),
+  });
 
   useEffect(() => {
     void setAudioModeAsync({
@@ -148,10 +157,39 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
     await player.seekTo(Math.max(0, Math.min(positionSec + deltaSec, durationSec)));
   }
 
-  function retryPlayback() {
+  async function retryPlayback() {
+    if (!active || retryingAudio) {
+      return;
+    }
+
     errorRef.current = false;
     setPlayState('loading');
-    player.replace(source);
+    setRetryingAudio(true);
+    noosTelemetry.track('player_retry_tap', {
+      audioId: active.audio?.audioId ?? null,
+      sessionId: active.sessionId,
+    });
+
+    try {
+      const { noosApi } = await import('@/api/noosApi');
+      const response = await noosApi.sessions.get(active.sessionId);
+      const refreshedActive = {
+        ...active,
+        audio: response.audio ?? active.audio,
+        durationSec: response.durationSec,
+        lighting: response.lighting ?? active.lighting,
+        planet: normalizePlanetId(response.planet),
+        summary: response.summary ?? active.summary,
+      };
+
+      setActive(refreshedActive);
+      player.replace(resolveAudioSource(refreshedActive));
+    } catch {
+      player.replace(source);
+    } finally {
+      setRetryingAudio(false);
+    }
+
     player.play();
   }
 
@@ -209,12 +247,14 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
 
         <Waveform active={status.playing && playState === 'playing'} planet={active.planet} />
 
-        {playState === 'error' ? (
-          <View style={styles.stack}>
-            <Toast message="재생에 실패했어요" variant="danger" />
-            <Button label="다시 시도" onPress={retryPlayback} variant="secondary" />
-            <Button label="Today로 이동" onPress={goToday} variant="ghost" />
-          </View>
+        {playbackStatus === 'loadError' ? (
+          <AudioLoadErrorCard
+            loading={retryingAudio}
+            onRetry={() => void retryPlayback()}
+            onSecondaryPress={goToday}
+            secondaryLabel="Today로 이동"
+            surface="single"
+          />
         ) : (
           <View style={styles.playerPanel}>
             <ProgressBar planet={active.planet} progress={progress} />

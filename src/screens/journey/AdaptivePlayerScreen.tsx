@@ -27,6 +27,8 @@ import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Toast } from '@/components/ui';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
+import { AudioLoadErrorCard } from '@/screens/journey/AudioLoadErrorCard';
+import { getAudioPlaybackStatus } from '@/screens/journey/audioPlaybackError';
 import {
   buildAdaptiveGraphData,
   type AdaptiveGraphData,
@@ -137,13 +139,19 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   const deviceWearStateRef = useRef<WearDetectorState>(createInitialWearDetectorState());
   const startedAudioIdRef = useRef<string | null>(null);
   const transitionSegmentIdRef = useRef<number | null>(null);
+  const audioErrorRef = useRef(false);
   const [playState, setPlayState] = useState<PlayState>('paused');
   const [error, setError] = useState<string | null>(null);
   const [isCrossfading, setIsCrossfading] = useState(false);
+  const [retryingAudio, setRetryingAudio] = useState(false);
   const [ending, setEnding] = useState(false);
   const durationSec = status.duration || playbackPlan.currentSegment?.durationSec || viewModel.durationSec;
   const positionSec = status.currentTime || 0;
   const progress = durationSec > 0 ? Math.min(positionSec / durationSec, 1) : 0;
+  const playbackStatus = getAudioPlaybackStatus({
+    hasLoadError: playState === 'error',
+    hasSession: Boolean(session && session.sessionId === route.params.sessionId),
+  });
 
   useEffect(() => {
     graphOpacity.value = space.sm / space.md;
@@ -312,9 +320,10 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
       return;
     }
 
-    if (status.error) {
+    if (status.error && !audioErrorRef.current) {
+      audioErrorRef.current = true;
       setPlayState('error');
-      setError('세그먼트 재생에 실패했어요.');
+      setError(null);
       noosTelemetry.track('adaptive_player_error', {
         audioId: currentAudioId,
         sessionId: route.params.sessionId,
@@ -327,6 +336,37 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
       setPlayState('paused');
     }
   }, [canPlayCurrent, playbackPlan.currentSegment?.audioId, route.params.sessionId, status.error, status.isLoaded]);
+
+  async function retryAdaptivePlayback() {
+    if (retryingAudio) {
+      return;
+    }
+
+    audioErrorRef.current = false;
+    setError(null);
+    setPlayState('loading');
+    setRetryingAudio(true);
+    noosTelemetry.track('adaptive_player_retry_tap', {
+      audioId: playbackPlan.currentSegment?.audioId ?? null,
+      sessionId: route.params.sessionId,
+    });
+
+    try {
+      const response = await refreshSession();
+      const refreshedSegment =
+        response.segments.find((segment) => segment.index === currentSegmentIndex) ??
+        response.currentSegment ??
+        playbackPlan.currentSegment;
+
+      player.replace(resolveAdaptiveSegmentAudioSource(refreshedSegment));
+    } catch {
+      player.replace(currentAudioSource);
+    } finally {
+      setRetryingAudio(false);
+    }
+
+    player.play();
+  }
 
   useEffect(() => {
     if (!status.didJustFinish || !status.isLoaded || playbackPlan.decision === 'crossfade-next') {
@@ -477,7 +517,7 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
           },
         ]}
       >
-        {error ? <Toast message={error} variant="danger" /> : null}
+        {error && playbackStatus !== 'loadError' ? <Toast message={error} variant="danger" /> : null}
         {wearStatus === 'off' ? <WearOffOverlay /> : null}
 
         <View style={styles.pillRow}>
@@ -522,27 +562,35 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
           </View>
         </View>
 
-        <View style={styles.controls}>
-          <Pressable
-            accessibilityLabel={status.playing ? '일시정지' : '재생'}
-            accessibilityRole="button"
-            disabled={!canPlayCurrent || playState === 'error'}
-            onPress={togglePlayback}
-            style={[
-              styles.playButton,
-              (!canPlayCurrent || playState === 'error') && styles.playButtonDisabled,
-            ]}
-          >
-            {!canPlayCurrent ? (
-              <ActivityIndicator color={color.text.inverse} />
-            ) : (
-              <Text style={styles.playButtonText}>{status.playing ? 'Ⅱ' : '▶'}</Text>
-            )}
-          </Pressable>
-          <Text style={styles.body}>
-            {canPlayCurrent ? '현재 준비된 음악을 재생할 수 있어요.' : '첫 음악이 준비되면 재생할 수 있어요.'}
-          </Text>
-        </View>
+        {playbackStatus === 'loadError' ? (
+          <AudioLoadErrorCard
+            loading={retryingAudio}
+            onRetry={() => void retryAdaptivePlayback()}
+            surface="adaptive"
+          />
+        ) : (
+          <View style={styles.controls}>
+            <Pressable
+              accessibilityLabel={status.playing ? '일시정지' : '재생'}
+              accessibilityRole="button"
+              disabled={!canPlayCurrent}
+              onPress={togglePlayback}
+              style={[
+                styles.playButton,
+                !canPlayCurrent && styles.playButtonDisabled,
+              ]}
+            >
+              {!canPlayCurrent || playState === 'loading' ? (
+                <ActivityIndicator color={color.text.inverse} />
+              ) : (
+                <Text style={styles.playButtonText}>{status.playing ? 'Ⅱ' : '▶'}</Text>
+              )}
+            </Pressable>
+            <Text style={styles.body}>
+              {canPlayCurrent ? '현재 준비된 음악을 재생할 수 있어요.' : '첫 음악이 준비되면 재생할 수 있어요.'}
+            </Text>
+          </View>
+        )}
 
         <Button
           fullWidth
