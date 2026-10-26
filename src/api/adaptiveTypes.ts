@@ -1,3 +1,4 @@
+import type { SessionLighting } from '@/api/types';
 import type { PlanetId } from '@/theme';
 
 export type AdaptiveSeedSource = 'survey' | 'eeg' | 'hybrid' | 'none';
@@ -40,6 +41,7 @@ export interface AdaptiveSixAxis {
 export interface AdaptiveSessionStartRequest {
   seedSource: AdaptiveSeedSource;
   planetHint?: string | null;
+  lightingEnabled?: boolean;
 }
 
 export interface AdaptiveSessionStartResponse {
@@ -122,6 +124,7 @@ export interface AdaptiveSessionResponse {
   currentPlanet: string;
   seedSource: AdaptiveSeedSource;
   pausedReason: string | null;
+  lighting?: SessionLighting | null;
   currentSegment: AdaptiveSegmentView | null;
   nextSegment: AdaptiveSegmentView | null;
   segments: AdaptiveSegmentView[];

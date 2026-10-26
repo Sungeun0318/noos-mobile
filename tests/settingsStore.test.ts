@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { normalizeBackendUrl, useSettingsStore } from '@/stores/settingsStore';
+import { migrateSettings, normalizeBackendUrl, useSettingsStore } from '@/stores/settingsStore';
 
 import { __getMMKVStore } from './mocks/react-native-mmkv';
 
@@ -39,8 +39,10 @@ describe('settingsStore', () => {
     expect(useSettingsStore.getState().backendBaseUrl).toBe('http://localhost:8080');
   });
 
-  it('keeps lighting disabled by default', () => {
-    expect(useSettingsStore.getState().lightingEnabled).toBe(false);
+  it('updates lighting preference', () => {
+    useSettingsStore.getState().setLightingEnabled(true);
+
+    expect(useSettingsStore.getState().lightingEnabled).toBe(true);
   });
 
   it('updates adaptive backend real override', () => {
@@ -59,5 +61,16 @@ describe('settingsStore', () => {
 
   it('normalizes backend URL helper', () => {
     expect(normalizeBackendUrl(' https://noos.example.com/ ')).toBe('https://noos.example.com');
+  });
+
+  it('turns lighting on when migrating settings saved before lighting was wired', () => {
+    expect(migrateSettings({ hasOnboarded: true, lightingEnabled: false }, 0)).toEqual({
+      hasOnboarded: true,
+      lightingEnabled: true,
+    });
+  });
+
+  it('keeps a lighting choice made after the migration', () => {
+    expect(migrateSettings({ lightingEnabled: false }, 1)).toEqual({ lightingEnabled: false });
   });
 });

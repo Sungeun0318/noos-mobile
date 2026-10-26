@@ -5,9 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { startAdaptiveSession } from '@/api/adaptiveGateway';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
+import { LightingToggleCard } from '@/components/LightingToggleCard';
 import { PlanetHero } from '@/components/PlanetHero';
 import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Card, Toast } from '@/components/ui';
+import { getLightingUnavailableText } from '@/lighting/lightingState';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
 import {
@@ -15,9 +17,11 @@ import {
   buildAdaptiveStartRequest,
   getAdaptiveSetupCtaState,
   getAdaptiveSeedSource,
+  getAdaptiveStartGatewayMode,
   isMuseConnected,
   toBackendAdaptivePlanet,
 } from '@/screens/journey/adaptiveSetupLogic';
+import { useLightingAvailable } from '@/queries/useLightingAvailable';
 import { MuseConnectSheet } from '@/screens/journey/MuseConnectSheet';
 import { useAdaptiveSessionStore } from '@/stores/adaptiveSessionStore';
 import { useDeviceStore, type MuseStatus } from '@/stores/deviceStore';
@@ -45,6 +49,9 @@ export function AdaptiveSessionSetupScreen({ navigation, route }: AdaptiveSetupP
   const recommendedPlanet = useStateStore((state) => state.recommendedPlanet);
   const simulationMode = useSettingsStore((state) => state.simulationMode);
   const setSimulationMode = useSettingsStore((state) => state.setSimulationMode);
+  const adaptiveBackendReal = useSettingsStore((state) => state.adaptiveBackendReal);
+  const lightingPreferred = useSettingsStore((state) => state.lightingEnabled);
+  const setLightingPreferred = useSettingsStore((state) => state.setLightingEnabled);
   const museStatus = useDeviceStore((state) => state.muse.status);
   const museName = useDeviceStore((state) => state.muse.deviceName);
   const signalQuality = useDeviceStore((state) => state.muse.signalQuality);
@@ -61,6 +68,8 @@ export function AdaptiveSessionSetupScreen({ navigation, route }: AdaptiveSetupP
   const seedSource = getAdaptiveSeedSource({ method: selectedMethod, museStatus });
   const ctaState = getAdaptiveSetupCtaState({ method: selectedMethod, museStatus });
   const planetMeta = PLANETS[selectedPlanet];
+  const lightingMode = getAdaptiveStartGatewayMode({ adaptiveBackendReal, method: selectedMethod, simulationMode });
+  const lightingAvailable = useLightingAvailable(lightingMode);
 
   async function startSession() {
     if (ctaState.action === 'connectMuse') {
@@ -79,6 +88,7 @@ export function AdaptiveSessionSetupScreen({ navigation, route }: AdaptiveSetupP
     }
 
     const payload = buildAdaptiveStartRequest({
+      lightingEnabled: lightingPreferred,
       method: selectedMethod,
       museStatus,
       planet: selectedPlanet,
@@ -156,6 +166,13 @@ export function AdaptiveSessionSetupScreen({ navigation, route }: AdaptiveSetupP
         </View>
 
         <SessionPlanCard />
+
+        <LightingToggleCard
+          available={lightingAvailable}
+          onChange={setLightingPreferred}
+          unavailableText={getLightingUnavailableText(lightingMode)}
+          value={lightingPreferred}
+        />
 
         <Card level={2} padding="lg" variant="glass">
           <View style={styles.ctaStack}>

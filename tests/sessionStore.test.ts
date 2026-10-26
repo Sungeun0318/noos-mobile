@@ -79,7 +79,7 @@ describe('sessionStore', () => {
       },
       lighting: {
         active: false,
-        jobId: null,
+        enabled: false,
       },
       status: 'ready',
       summary: {

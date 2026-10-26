@@ -51,7 +51,7 @@ export async function sessionPollMock(
     createdAt,
     durationSec: session.durationSec,
     error: null,
-    lighting: status === 'ready' ? { active: false, jobId: null } : null,
+    lighting: status === 'ready' ? { active: false, enabled: false } : null,
     planet: PLANETS[session.planet].title,
     progress:
       status === 'ready'

@@ -14,6 +14,7 @@ import {
   pauseAdaptiveSession,
   resumeAdaptiveSession,
 } from '@/api/adaptiveGateway';
+import { setAdaptiveSessionLighting } from '@/api/lightingGateway';
 import { createAdaptiveCaptureLoop, type AdaptiveCaptureLoop } from '@/adaptive/adaptiveCaptureEngine';
 import { buildLiveBandSeries, type LiveBandSeries } from '@/adaptive/adaptiveLiveState';
 import { applyAdaptiveWearTransition } from '@/adaptive/adaptiveWearEffects';
@@ -23,10 +24,18 @@ import {
   type WearDetectorState,
 } from '@/adaptive/wearDetector';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
+import { LightingSwitchPill } from '@/components/LightingSwitchPill';
 import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Toast } from '@/components/ui';
+import {
+  getLightingSwitchState,
+  getLightingToggleNotice,
+  getNextLightingEnabled,
+  lightingModeForSession,
+} from '@/lighting/lightingState';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
+import { useLightingAvailable } from '@/queries/useLightingAvailable';
 import { AudioLoadErrorCard } from '@/screens/journey/AudioLoadErrorCard';
 import { getAudioPlaybackStatus } from '@/screens/journey/audioPlaybackError';
 import {
@@ -98,6 +107,14 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   }));
   const muse = useDeviceStore((state) => state.muse);
   const setWearStatus = useAdaptiveSessionStore((state) => state.setWearStatus);
+  const setLighting = useAdaptiveSessionStore((state) => state.setLighting);
+  const lightingMode = lightingModeForSession(route.params.sessionId);
+  const lightingAvailable = useLightingAvailable(lightingMode);
+  const lightingState = getLightingSwitchState({
+    available: lightingAvailable,
+    lighting: session?.lighting,
+    surface: 'adaptive',
+  });
   const viewModel = useMemo(
     () =>
       buildAdaptivePlayerViewModel({
@@ -145,6 +162,8 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   const [isCrossfading, setIsCrossfading] = useState(false);
   const [retryingAudio, setRetryingAudio] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [lightingBusy, setLightingBusy] = useState(false);
+  const [lightingNotice, setLightingNotice] = useState<string | null>(null);
   const durationSec = status.duration || playbackPlan.currentSegment?.durationSec || viewModel.durationSec;
   const positionSec = status.currentTime || 0;
   const progress = durationSec > 0 ? Math.min(positionSec / durationSec, 1) : 0;
@@ -184,8 +203,9 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   }, [isCrossfading, playbackPlan.decision, playbackPlan.targetVolume, player]);
 
   const refreshSession = useCallback(async () => {
+    const requestedAt = Date.now();
     const response = await getAdaptiveSession(route.params.sessionId);
-    applyGetResponse(response);
+    applyGetResponse(response, requestedAt);
 
     return response;
   }, [applyGetResponse, route.params.sessionId]);
@@ -470,6 +490,27 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
     });
   }
 
+  async function toggleLighting() {
+    if (lightingBusy) {
+      return;
+    }
+
+    const enabled = getNextLightingEnabled(lightingState);
+    setLightingBusy(true);
+    setLightingNotice(null);
+
+    try {
+      const lighting = await setAdaptiveSessionLighting(route.params.sessionId, enabled, lightingMode);
+      setLighting(lighting);
+      setLightingNotice(getLightingToggleNotice({ requested: enabled, result: lighting, surface: 'adaptive' }));
+      noosTelemetry.track('adaptive_player_lighting_toggle', { active: lighting.active, enabled });
+    } catch {
+      setLightingNotice('조명을 바꾸지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      setLightingBusy(false);
+    }
+  }
+
   async function endSession() {
     if (ending) {
       return;
@@ -523,8 +564,13 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
         <View style={styles.pillRow}>
           <StatusPill label={viewModel.wearLabel} tone={wearStatus === 'worn' ? 'good' : 'neutral'} />
           <StatusPill label={viewModel.signalLabel} tone={lastSignalScore !== null && lastSignalScore >= 0.35 ? 'good' : 'neutral'} />
-          <LightingPill />
+          <LightingSwitchPill
+            busy={lightingBusy}
+            onPress={() => void toggleLighting()}
+            state={lightingState}
+          />
         </View>
+        {lightingNotice ? <Toast message={lightingNotice} variant="info" /> : null}
 
         <View style={styles.hero}>
           <View style={styles.planetAura} />
@@ -622,14 +668,6 @@ function StatusPill({
   return (
     <View style={[styles.statusPill, styles[`statusPill_${tone}`]]}>
       <Text style={styles.statusPillText}>{label}</Text>
-    </View>
-  );
-}
-
-function LightingPill() {
-  return (
-    <View style={styles.statusPill}>
-      <Text style={styles.statusPillText}>조명 OFF</Text>
     </View>
   );
 }

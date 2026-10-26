@@ -1,3 +1,4 @@
+import { currentAdaptiveGatewayMode, type AdaptiveGatewayMode } from '@/api/adaptiveGateway';
 import type { AdaptiveSeedSource, AdaptiveSessionStartRequest } from '@/api/adaptiveTypes';
 import type { MuseStatus } from '@/stores/deviceStore';
 import { PLANETS, type PlanetId } from '@/theme';
@@ -24,6 +25,7 @@ export interface AdaptiveSetupInput {
   method: AdaptiveSetupMethod;
   museStatus: MuseStatus;
   planet: PlanetId;
+  lightingEnabled?: boolean;
 }
 
 export interface AdaptiveSetupCtaState {
@@ -79,7 +81,20 @@ export function getAdaptiveSetupCtaState(input: {
 
 export function buildAdaptiveStartRequest(input: AdaptiveSetupInput): AdaptiveSessionStartRequest {
   return {
+    lightingEnabled: input.lightingEnabled ?? false,
     planetHint: toBackendAdaptivePlanet(input.planet),
     seedSource: getAdaptiveSeedSource(input),
   };
+}
+
+// 시작할 때 측정 방식에 맞춰 simulationMode 를 바꾸므로(시뮬 EEG=켬, 실제 EEG=끔) 바뀐 뒤 기준으로 본다.
+export function getAdaptiveStartGatewayMode(input: {
+  method: AdaptiveSetupMethod;
+  simulationMode: boolean;
+  adaptiveBackendReal: boolean;
+}): AdaptiveGatewayMode {
+  const simulation =
+    input.method === 'simulationEeg' ? true : input.method === 'realEeg' ? false : input.simulationMode;
+
+  return currentAdaptiveGatewayMode(simulation, input.adaptiveBackendReal);
 }

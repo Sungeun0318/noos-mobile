@@ -4,16 +4,20 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { createSession } from '@/api/sessionGateway';
+import { createSession, currentSessionGatewayMode } from '@/api/sessionGateway';
 import type { EnqueueSessionRequest } from '@/api/types';
+import { LightingToggleCard } from '@/components/LightingToggleCard';
 import { PlanetImage } from '@/components/PlanetImage';
 import { PlanetHero } from '@/components/PlanetHero';
 import { Button, Card, Toast } from '@/components/ui';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
+import { getLightingUnavailableText } from '@/lighting/lightingState';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
+import { useLightingAvailable } from '@/queries/useLightingAvailable';
 import { getMeasurementCtaState } from '@/screens/journey/planetSelectMeasurement';
 import { canAddPendingSession, useSessionStore } from '@/stores/sessionStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { useStateStore } from '@/stores/stateStore';
 import { color, PLANET_COLORS, PLANETS, radius, space, type, type PlanetId } from '@/theme';
 
@@ -38,6 +42,11 @@ export function PlanetSelectScreen({ navigation }: { navigation: PlanetSelectNav
   const pending = useSessionStore((state) => state.pending);
   const setDraft = useSessionStore((state) => state.setDraft);
   const addPending = useSessionStore((state) => state.addPending);
+  const simulationMode = useSettingsStore((state) => state.simulationMode);
+  const lightingPreferred = useSettingsStore((state) => state.lightingEnabled);
+  const setLightingPreferred = useSettingsStore((state) => state.setLightingEnabled);
+  const lightingMode = currentSessionGatewayMode(simulationMode);
+  const lightingAvailable = useLightingAvailable(lightingMode);
   const [selectedPlanet, setSelectedPlanet] = useState<PlanetId | null>(recommendedPlanet);
   const [durationMin, setDurationMin] = useState<DurationMin>(10);
   const [submitting, setSubmitting] = useState(false);
@@ -59,8 +68,8 @@ export function PlanetSelectScreen({ navigation }: { navigation: PlanetSelectNav
     const payload: EnqueueSessionRequest = {
       durationSec,
       idempotencyKey: Crypto.randomUUID(),
-      // DEC-011: lighting is intentionally disabled until lighting integration is re-scoped.
-      lightingEnabled: false,
+      // health 응답 전이어도 선호값을 그대로 보낸다. WiZ 가 없으면 백엔드가 조명을 붙이지 않는다.
+      lightingEnabled: lightingPreferred,
       planet: PLANETS[planet].title,
     };
 
@@ -163,7 +172,12 @@ export function PlanetSelectScreen({ navigation }: { navigation: PlanetSelectNav
         />
         <DurationPicker durationMin={durationMin} onChange={setDurationMin} />
         {durationMin === 60 ? <Toast message="긴 곡은 최대 1시간까지 걸릴 수 있어요." variant="info" /> : null}
-        <LightingToggle />
+        <LightingToggleCard
+          available={lightingAvailable}
+          onChange={setLightingPreferred}
+          unavailableText={getLightingUnavailableText(lightingMode)}
+          value={lightingPreferred}
+        />
         <Card level={2} padding="lg" variant="glass">
           <View style={styles.ctaStack}>
             <Text style={styles.ctaMeta}>선택한 행성으로 음악을 만들어요</Text>
@@ -318,22 +332,6 @@ function DurationPicker({
   );
 }
 
-function LightingToggle() {
-  return (
-    <Card level={2} padding="lg" variant="glass">
-      <View style={styles.lightingRow}>
-        <View style={styles.cardStack}>
-          <Text style={styles.cardTitleSmall}>조명</Text>
-          <Text style={styles.bodyText}>조명 미연결</Text>
-        </View>
-        <View style={styles.disabledToggle}>
-          <View style={styles.disabledToggleKnob} />
-        </View>
-      </View>
-    </Card>
-  );
-}
-
 function IntentChip({ intentText }: { intentText: string }) {
   return (
     <View style={styles.intentChip}>
@@ -378,23 +376,6 @@ const styles = StyleSheet.create({
   },
   ctaStack: {
     gap: space.md,
-  },
-  disabledToggle: {
-    alignItems: 'flex-start',
-    backgroundColor: color.bg.elevated,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: space.xl,
-    justifyContent: 'center',
-    paddingHorizontal: space.xs,
-    width: space['4xl'],
-  },
-  disabledToggleKnob: {
-    backgroundColor: color.text.tertiary,
-    borderRadius: radius.pill,
-    height: space.md,
-    width: space.md,
   },
   eyebrow: {
     color: color.text.tertiary,
@@ -457,12 +438,6 @@ const styles = StyleSheet.create({
     fontWeight: type.caption.weight,
     letterSpacing: 0.4,
     lineHeight: type.caption.lineHeight,
-  },
-  lightingRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: space.lg,
-    justifyContent: 'space-between',
   },
   measurementRow: {
     alignItems: 'center',
