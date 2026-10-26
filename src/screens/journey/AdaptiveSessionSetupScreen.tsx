@@ -9,7 +9,7 @@ import { LightingToggleCard } from '@/components/LightingToggleCard';
 import { PlanetHero } from '@/components/PlanetHero';
 import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Card, Toast } from '@/components/ui';
-import { getLightingUnavailableText, shouldRequestLighting } from '@/lighting/lightingState';
+import { getLightingUnavailableText } from '@/lighting/lightingState';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
 import {
@@ -88,7 +88,7 @@ export function AdaptiveSessionSetupScreen({ navigation, route }: AdaptiveSetupP
     }
 
     const payload = buildAdaptiveStartRequest({
-      lightingEnabled: shouldRequestLighting({ available: lightingAvailable, preferred: lightingPreferred }),
+      lightingEnabled: lightingPreferred,
       method: selectedMethod,
       museStatus,
       planet: selectedPlanet,

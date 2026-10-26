@@ -11,7 +11,7 @@ import { PlanetImage } from '@/components/PlanetImage';
 import { PlanetHero } from '@/components/PlanetHero';
 import { Button, Card, Toast } from '@/components/ui';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
-import { getLightingUnavailableText, shouldRequestLighting } from '@/lighting/lightingState';
+import { getLightingUnavailableText } from '@/lighting/lightingState';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
 import { useLightingAvailable } from '@/queries/useLightingAvailable';
@@ -68,7 +68,8 @@ export function PlanetSelectScreen({ navigation }: { navigation: PlanetSelectNav
     const payload: EnqueueSessionRequest = {
       durationSec,
       idempotencyKey: Crypto.randomUUID(),
-      lightingEnabled: shouldRequestLighting({ available: lightingAvailable, preferred: lightingPreferred }),
+      // health 응답 전이어도 선호값을 그대로 보낸다. WiZ 가 없으면 백엔드가 조명을 붙이지 않는다.
+      lightingEnabled: lightingPreferred,
       planet: PLANETS[planet].title,
     };
 

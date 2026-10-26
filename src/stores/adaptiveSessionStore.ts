@@ -41,13 +41,14 @@ interface AdaptiveSessionStoreShape {
   lastAction: AdaptiveAction | null;
   lastSignalScore: number | null;
   lastSampleBufferLen: number;
+  lightingChangedAt: number;
   nextWindowIndex: number;
   wearStatus: AdaptiveWearStatus;
   nextGenStatus: AdaptiveNextGenStatus;
   setSession(session: AdaptiveSessionResponse | null): void;
   setLighting(lighting: SessionLighting): void;
   applyStartResponse(response: AdaptiveSessionStartResponse, options?: ApplyStartOptions): void;
-  applyGetResponse(response: AdaptiveSessionResponse): void;
+  applyGetResponse(response: AdaptiveSessionResponse, requestedAt?: number): void;
   applyWindowResult(
     response: AdaptiveWindowSubmitResponse,
     submittedWindow?: AdaptiveWindowSubmitRequest,
@@ -66,6 +67,7 @@ const initialState = {
   liveSixAxis: null,
   lastSampleBufferLen: 0,
   lastSignalScore: null,
+  lightingChangedAt: 0,
   nextGenStatus: 'idle' as AdaptiveNextGenStatus,
   nextWindowIndex: 0,
   recentWindows: [],
@@ -210,7 +212,9 @@ function withDerived(session: AdaptiveSessionResponse | null, segments = session
 export const useAdaptiveSessionStore = create<AdaptiveSessionStoreShape>()((set) => ({
   ...initialState,
   setLighting: (lighting) =>
-    set((state) => (state.session ? { session: { ...state.session, lighting } } : {})),
+    set((state) =>
+      state.session ? { lightingChangedAt: Date.now(), session: { ...state.session, lighting } } : {},
+    ),
   setSession: (session) =>
     set({
       ...withDerived(session),
@@ -230,12 +234,21 @@ export const useAdaptiveSessionStore = create<AdaptiveSessionStoreShape>()((set)
         session,
       };
     }),
-  applyGetResponse: (response) =>
-    set({
-      ...withDerived(response),
-      recentWindows: response.recentWindows,
-      segments: response.segments,
-      session: response,
+  // 토글 응답보다 먼저 보낸 폴링 응답이 늦게 도착하면 방금 바꾼 조명 상태를 되돌리지 않는다.
+  applyGetResponse: (response, requestedAt) =>
+    set((state) => {
+      const staleLighting =
+        requestedAt !== undefined &&
+        requestedAt < state.lightingChangedAt &&
+        state.session?.sessionId === response.sessionId;
+      const session = staleLighting ? { ...response, lighting: state.session?.lighting } : response;
+
+      return {
+        ...withDerived(session),
+        recentWindows: session.recentWindows,
+        segments: session.segments,
+        session,
+      };
     }),
   applyWindowResult: (response, submittedWindow) =>
     set((state) => {

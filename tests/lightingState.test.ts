@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { setAdaptiveSessionLighting, setSessionLighting, stopLighting } from '@/api/lightingGateway';
 import {
+  LIGHTING_SWITCH_ACCESSIBILITY_LABEL,
   getLightingSwitchState,
   getLightingToggleNotice,
   getLightingUnavailableText,
   getNextLightingEnabled,
   isLightingAvailable,
-  shouldRequestLighting,
+  lightingModeForSession,
 } from '@/lighting/lightingState';
 
 describe('lightingState', () => {
@@ -23,10 +24,16 @@ describe('lightingState', () => {
     expect(getLightingUnavailableText('real')).toBe('조명 미연결');
   });
 
-  it('requests lighting only when available and preferred', () => {
-    expect(shouldRequestLighting({ available: true, preferred: true })).toBe(true);
-    expect(shouldRequestLighting({ available: false, preferred: true })).toBe(false);
-    expect(shouldRequestLighting({ available: true, preferred: false })).toBe(false);
+  it('takes the lighting gateway from the session, not the current simulation flag', () => {
+    expect(lightingModeForSession('session_mock_1761469200')).toBe('mock');
+    expect(lightingModeForSession('adaptive_mock_3')).toBe('mock');
+    expect(lightingModeForSession('session_6fe8bfd93bd44f2e87c0444a')).toBe('real');
+  });
+
+  it('never announces an action for unavailable lighting', () => {
+    expect(LIGHTING_SWITCH_ACCESSIBILITY_LABEL.unavailable).toBe('조명 미연결');
+    expect(LIGHTING_SWITCH_ACCESSIBILITY_LABEL.off).toBe('조명 켜기');
+    expect(LIGHTING_SWITCH_ACCESSIBILITY_LABEL.on).toBe('조명 끄기');
   });
 
   it('shows on only while the session actually holds the bulbs', () => {
@@ -72,6 +79,6 @@ describe('lightingGateway mock mode', () => {
       active: false,
       enabled: false,
     });
-    await expect(stopLighting('mock')).resolves.toBeUndefined();
+    await expect(stopLighting('session_mock_1', 'mock')).resolves.toBeUndefined();
   });
 });

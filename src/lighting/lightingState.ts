@@ -11,6 +11,19 @@ export const LIGHTING_SWITCH_LABEL: Record<LightingSwitchState, string> = {
   waiting: '조명 대기',
 };
 
+export const LIGHTING_SWITCH_ACCESSIBILITY_LABEL: Record<LightingSwitchState, string> = {
+  off: '조명 켜기',
+  on: '조명 끄기',
+  unavailable: '조명 미연결',
+  waiting: '조명 끄기',
+};
+
+// 세션을 만든 시점의 게이트웨이로 판단한다. 재생 중에 시뮬레이션 모드를 바꿔도 조명 요청이 엉뚱한 곳으로 가지 않는다.
+// mock 세션 ID 는 session_mock_* / adaptive_mock_* (enqueueMock, adaptiveMock).
+export function lightingModeForSession(sessionId: string): LightingGatewayMode {
+  return sessionId.includes('_mock_') ? 'mock' : 'real';
+}
+
 // 시뮬레이션(mock) 세션은 백엔드 음악 생성을 거치지 않으니 조명도 붙지 않는다.
 export function isLightingAvailable(input: {
   mode: LightingGatewayMode;
@@ -21,10 +34,6 @@ export function isLightingAvailable(input: {
 
 export function getLightingUnavailableText(mode: LightingGatewayMode) {
   return mode === 'mock' ? '시뮬레이션 모드에서는 조명을 쓰지 않아요.' : '조명 미연결';
-}
-
-export function shouldRequestLighting(input: { available: boolean; preferred: boolean }) {
-  return input.available && input.preferred;
 }
 
 // 적응형은 켜 두면 다음 곡 생성 때 불이 들어오므로 "대기"가 있다. 단일 세션은 더 생성될 곡이 없어 on/off 뿐이다.

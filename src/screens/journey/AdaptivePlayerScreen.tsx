@@ -9,7 +9,6 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import type { AdaptiveSixAxis } from '@/api/adaptiveTypes';
 import {
-  currentAdaptiveGatewayMode,
   endAdaptiveSession,
   getAdaptiveSession,
   pauseAdaptiveSession,
@@ -28,7 +27,12 @@ import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { LightingSwitchPill } from '@/components/LightingSwitchPill';
 import { PlanetImage } from '@/components/PlanetImage';
 import { Button, Toast } from '@/components/ui';
-import { getLightingSwitchState, getLightingToggleNotice, getNextLightingEnabled } from '@/lighting/lightingState';
+import {
+  getLightingSwitchState,
+  getLightingToggleNotice,
+  getNextLightingEnabled,
+  lightingModeForSession,
+} from '@/lighting/lightingState';
 import { noosTelemetry } from '@/lib/telemetry';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
 import { useLightingAvailable } from '@/queries/useLightingAvailable';
@@ -45,7 +49,6 @@ import { buildAdaptivePlayerViewModel } from '@/screens/journey/adaptivePlayerSt
 import { buildAdaptivePlaybackPlan } from '@/screens/journey/adaptivePlaybackPlan';
 import { useAdaptiveSessionStore } from '@/stores/adaptiveSessionStore';
 import { useDeviceStore } from '@/stores/deviceStore';
-import { useSettingsStore } from '@/stores/settingsStore';
 import { color, motion, PLANET_COLORS, radius, space, type, type PlanetId } from '@/theme';
 
 type AdaptivePlayerProps = NativeStackScreenProps<JourneyStackParamList, 'Journey/AdaptivePlayer'>;
@@ -105,9 +108,7 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   const muse = useDeviceStore((state) => state.muse);
   const setWearStatus = useAdaptiveSessionStore((state) => state.setWearStatus);
   const setLighting = useAdaptiveSessionStore((state) => state.setLighting);
-  const simulationMode = useSettingsStore((state) => state.simulationMode);
-  const adaptiveBackendReal = useSettingsStore((state) => state.adaptiveBackendReal);
-  const lightingMode = currentAdaptiveGatewayMode(simulationMode, adaptiveBackendReal);
+  const lightingMode = lightingModeForSession(route.params.sessionId);
   const lightingAvailable = useLightingAvailable(lightingMode);
   const lightingState = getLightingSwitchState({
     available: lightingAvailable,
@@ -202,8 +203,9 @@ export function AdaptivePlayerScreen({ navigation, route }: AdaptivePlayerProps)
   }, [isCrossfading, playbackPlan.decision, playbackPlan.targetVolume, player]);
 
   const refreshSession = useCallback(async () => {
+    const requestedAt = Date.now();
     const response = await getAdaptiveSession(route.params.sessionId);
-    applyGetResponse(response);
+    applyGetResponse(response, requestedAt);
 
     return response;
   }, [applyGetResponse, route.params.sessionId]);

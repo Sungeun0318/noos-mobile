@@ -103,7 +103,11 @@ export const noosApi = {
       }),
   },
   lighting: {
-    stop: () => request<unknown>('/api/mobile/lighting/stop', { method: 'POST' }),
+    stop: (sessionId: string) =>
+      request<unknown>('/api/mobile/lighting/stop', {
+        method: 'POST',
+        body: JSON.stringify({ sessionId }),
+      }),
   },
   auth: {
     signup: (body: {

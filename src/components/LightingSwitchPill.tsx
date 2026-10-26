@@ -1,6 +1,10 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { LIGHTING_SWITCH_LABEL, type LightingSwitchState } from '@/lighting/lightingState';
+import {
+  LIGHTING_SWITCH_ACCESSIBILITY_LABEL,
+  LIGHTING_SWITCH_LABEL,
+  type LightingSwitchState,
+} from '@/lighting/lightingState';
 import { color, radius, space, type } from '@/theme';
 
 export function LightingSwitchPill({
@@ -16,7 +20,7 @@ export function LightingSwitchPill({
 
   return (
     <Pressable
-      accessibilityLabel={state === 'off' ? '조명 켜기' : '조명 끄기'}
+      accessibilityLabel={LIGHTING_SWITCH_ACCESSIBILITY_LABEL[state]}
       accessibilityRole="switch"
       accessibilityState={{ busy, checked: state === 'on' || state === 'waiting', disabled }}
       disabled={disabled}

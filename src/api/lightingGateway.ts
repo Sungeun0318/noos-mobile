@@ -29,12 +29,13 @@ export async function setAdaptiveSessionLighting(
   return noosApi.adaptive.setLighting(sessionId, enabled);
 }
 
-export async function stopLighting(mode: LightingGatewayMode): Promise<void> {
+// 이 세션이 잡고 있는 조명만 끈다. 그사이 다른 세션이 조명을 잡았으면 백엔드가 그대로 둔다.
+export async function stopLighting(sessionId: string, mode: LightingGatewayMode): Promise<void> {
   if (mode === 'mock') {
     return;
   }
 
   const { noosApi } = await import('@/api/noosApi');
 
-  await noosApi.lighting.stop();
+  await noosApi.lighting.stop(sessionId);
 }

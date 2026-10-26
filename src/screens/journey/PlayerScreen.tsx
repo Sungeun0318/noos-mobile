@@ -12,7 +12,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { setSessionLighting, stopLighting } from '@/api/lightingGateway';
-import { currentSessionGatewayMode } from '@/api/sessionGateway';
 import { resolveAudioSource } from '@/audio/resolveAudioSource';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import { LightingSwitchPill } from '@/components/LightingSwitchPill';
@@ -22,7 +21,7 @@ import {
   getLightingSwitchState,
   getLightingToggleNotice,
   getNextLightingEnabled,
-  type LightingGatewayMode,
+  lightingModeForSession,
 } from '@/lighting/lightingState';
 import { noosTelemetry } from '@/lib/telemetry';
 import { useReducedMotion } from '@/lib/useReducedMotion';
@@ -31,7 +30,6 @@ import { useLightingAvailable } from '@/queries/useLightingAvailable';
 import { AudioLoadErrorCard } from '@/screens/journey/AudioLoadErrorCard';
 import { getAudioPlaybackStatus } from '@/screens/journey/audioPlaybackError';
 import { useSessionStore } from '@/stores/sessionStore';
-import { useSettingsStore } from '@/stores/settingsStore';
 import { normalizePlanetId } from '@/stores/stateStore';
 import { color, motion, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
 
@@ -65,10 +63,9 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
   const [retryingAudio, setRetryingAudio] = useState(false);
   const [lightingBusy, setLightingBusy] = useState(false);
   const [lightingNotice, setLightingNotice] = useState<string | null>(null);
-  const simulationMode = useSettingsStore((state) => state.simulationMode);
-  const lightingMode = currentSessionGatewayMode(simulationMode);
+  const lightingMode = lightingModeForSession(route.params.sessionId);
   const lightingAvailable = useLightingAvailable(lightingMode);
-  const lightingRef = useRef<{ lit: boolean; mode: LightingGatewayMode }>({ lit: false, mode: lightingMode });
+  const lightingRef = useRef({ lit: false, sessionId: route.params.sessionId });
   const lightingState = getLightingSwitchState({
     available: lightingAvailable,
     lighting: active?.lighting,
@@ -85,7 +82,10 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
     hasLoadError: playState === 'error',
     hasSession: Boolean(activeMatchesRoute && active),
   });
-  lightingRef.current = { lit: Boolean(activeMatchesRoute && active?.lighting?.active), mode: lightingMode };
+  lightingRef.current = {
+    lit: Boolean(activeMatchesRoute && active?.lighting?.active),
+    sessionId: route.params.sessionId,
+  };
 
   // 웹 여정과 같이 플레이어를 떠나면 세션 전 조명으로 되돌린다.
   useEffect(() => () => releaseLighting(), []);
@@ -221,12 +221,15 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
   }
 
   function releaseLighting() {
-    if (!lightingRef.current.lit) {
+    const { lit, sessionId } = lightingRef.current;
+
+    if (!lit) {
       return;
     }
 
-    lightingRef.current = { ...lightingRef.current, lit: false };
-    void stopLighting(lightingRef.current.mode).catch(() => undefined);
+    lightingRef.current = { lit: false, sessionId };
+    markLightingReleased(sessionId);
+    void stopLighting(sessionId, lightingModeForSession(sessionId)).catch(() => undefined);
   }
 
   async function toggleLighting() {
@@ -357,6 +360,15 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
       </ScrollView>
     </ScreenBackdrop>
   );
+}
+
+// 스토어도 꺼짐으로 맞춰야 다음 렌더가 lit 을 다시 true 로 계산하지 않는다(끝난 세션이 조명을 잡은 것처럼 남는 문제).
+function markLightingReleased(sessionId: string) {
+  const { active, setActive } = useSessionStore.getState();
+
+  if (active?.sessionId === sessionId && active.lighting) {
+    setActive({ ...active, lighting: { ...active.lighting, active: false } });
+  }
 }
 
 function Waveform({ active, planet }: { active: boolean; planet: keyof typeof PLANETS }) {

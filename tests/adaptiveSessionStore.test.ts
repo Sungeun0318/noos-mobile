@@ -208,4 +208,36 @@ describe('adaptiveSessionStore', () => {
       wearStatus: 'unknown',
     });
   });
+
+  it('keeps a just-toggled lighting state when an older poll response arrives late', () => {
+    useAdaptiveSessionStore.getState().applyGetResponse({
+      ...fullSession('ready'),
+      lighting: { active: true, enabled: true },
+    });
+    const pollRequestedAt = Date.now() - 1_000;
+    useAdaptiveSessionStore.getState().setLighting({ active: false, enabled: false });
+
+    useAdaptiveSessionStore.getState().applyGetResponse(
+      { ...fullSession('ready'), lighting: { active: true, enabled: true } },
+      pollRequestedAt,
+    );
+
+    expect(useAdaptiveSessionStore.getState().session?.lighting).toEqual({ active: false, enabled: false });
+  });
+
+  it('accepts lighting from polls sent after the toggle', () => {
+    useAdaptiveSessionStore.getState().applyGetResponse({
+      ...fullSession('ready'),
+      lighting: { active: true, enabled: true },
+    });
+    useAdaptiveSessionStore.getState().setLighting({ active: false, enabled: false });
+    const pollRequestedAt = Date.now() + 1;
+
+    useAdaptiveSessionStore.getState().applyGetResponse(
+      { ...fullSession('ready'), lighting: { active: true, enabled: true } },
+      pollRequestedAt,
+    );
+
+    expect(useAdaptiveSessionStore.getState().session?.lighting).toEqual({ active: true, enabled: true });
+  });
 });
