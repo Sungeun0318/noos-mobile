@@ -4,6 +4,7 @@ import {
   BACKEND_ADAPTIVE_PLANETS,
   buildAdaptiveStartRequest,
   getAdaptiveSetupCtaState,
+  getAdaptiveStartGatewayMode,
   getAdaptiveSeedSource,
   toBackendAdaptivePlanet,
 } from '@/screens/journey/adaptiveSetupLogic';
@@ -41,13 +42,28 @@ describe('adaptiveSetupLogic', () => {
 
   it('builds adaptive start payload with backend planet casing', () => {
     expect(buildAdaptiveStartRequest({ method: 'realEeg', museStatus: 'connected', planet: 'venus' })).toEqual({
+      lightingEnabled: false,
       planetHint: 'Venus',
       seedSource: 'eeg',
     });
     expect(buildAdaptiveStartRequest({ method: 'survey', museStatus: 'idle', planet: 'neptune' })).toEqual({
+      lightingEnabled: false,
       planetHint: 'Neptune',
       seedSource: 'survey',
     });
+  });
+
+  it('passes the lighting choice into the start request', () => {
+    expect(
+      buildAdaptiveStartRequest({ lightingEnabled: true, method: 'realEeg', museStatus: 'connected', planet: 'mars' }),
+    ).toMatchObject({ lightingEnabled: true });
+  });
+
+  it('judges gateway mode after the method switches simulation mode', () => {
+    expect(getAdaptiveStartGatewayMode({ adaptiveBackendReal: false, method: 'simulationEeg', simulationMode: false })).toBe('mock');
+    expect(getAdaptiveStartGatewayMode({ adaptiveBackendReal: false, method: 'realEeg', simulationMode: true })).toBe('real');
+    expect(getAdaptiveStartGatewayMode({ adaptiveBackendReal: false, method: 'survey', simulationMode: true })).toBe('mock');
+    expect(getAdaptiveStartGatewayMode({ adaptiveBackendReal: true, method: 'simulationEeg', simulationMode: true })).toBe('real');
   });
 
   it('switches CTA from Muse connection to start based on method and connection', () => {

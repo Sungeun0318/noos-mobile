@@ -11,16 +11,27 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { setSessionLighting, stopLighting } from '@/api/lightingGateway';
+import { currentSessionGatewayMode } from '@/api/sessionGateway';
 import { resolveAudioSource } from '@/audio/resolveAudioSource';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
+import { LightingSwitchPill } from '@/components/LightingSwitchPill';
 import { PlanetImage } from '@/components/PlanetImage';
-import { Button } from '@/components/ui';
+import { Button, Toast } from '@/components/ui';
+import {
+  getLightingSwitchState,
+  getLightingToggleNotice,
+  getNextLightingEnabled,
+  type LightingGatewayMode,
+} from '@/lighting/lightingState';
 import { noosTelemetry } from '@/lib/telemetry';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import type { JourneyStackParamList } from '@/navigation/JourneyStack';
+import { useLightingAvailable } from '@/queries/useLightingAvailable';
 import { AudioLoadErrorCard } from '@/screens/journey/AudioLoadErrorCard';
 import { getAudioPlaybackStatus } from '@/screens/journey/audioPlaybackError';
 import { useSessionStore } from '@/stores/sessionStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { normalizePlanetId } from '@/stores/stateStore';
 import { color, motion, PLANET_COLORS, PLANETS, radius, space, type } from '@/theme';
 
@@ -52,6 +63,17 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
   const status = useAudioPlayerStatus(player);
   const [playState, setPlayState] = useState<PlayState>('loading');
   const [retryingAudio, setRetryingAudio] = useState(false);
+  const [lightingBusy, setLightingBusy] = useState(false);
+  const [lightingNotice, setLightingNotice] = useState<string | null>(null);
+  const simulationMode = useSettingsStore((state) => state.simulationMode);
+  const lightingMode = currentSessionGatewayMode(simulationMode);
+  const lightingAvailable = useLightingAvailable(lightingMode);
+  const lightingRef = useRef<{ lit: boolean; mode: LightingGatewayMode }>({ lit: false, mode: lightingMode });
+  const lightingState = getLightingSwitchState({
+    available: lightingAvailable,
+    lighting: active?.lighting,
+    surface: 'single',
+  });
   const startedRef = useRef(false);
   const endedRef = useRef(false);
   const errorRef = useRef(false);
@@ -63,6 +85,10 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
     hasLoadError: playState === 'error',
     hasSession: Boolean(activeMatchesRoute && active),
   });
+  lightingRef.current = { lit: Boolean(activeMatchesRoute && active?.lighting?.active), mode: lightingMode };
+
+  // 웹 여정과 같이 플레이어를 떠나면 세션 전 조명으로 되돌린다.
+  useEffect(() => () => releaseLighting(), []);
 
   useEffect(() => {
     void setAudioModeAsync({
@@ -91,6 +117,7 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
       endedRef.current = true;
       setPlayState('ended');
       setStatus('completed');
+      releaseLighting();
       noosTelemetry.track('player_end_natural');
       navigation.navigate('Journey/Feedback', { sessionId: active.sessionId });
       return;
@@ -193,6 +220,36 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
     player.play();
   }
 
+  function releaseLighting() {
+    if (!lightingRef.current.lit) {
+      return;
+    }
+
+    lightingRef.current = { ...lightingRef.current, lit: false };
+    void stopLighting(lightingRef.current.mode).catch(() => undefined);
+  }
+
+  async function toggleLighting() {
+    if (!active || lightingBusy) {
+      return;
+    }
+
+    const enabled = getNextLightingEnabled(lightingState);
+    setLightingBusy(true);
+    setLightingNotice(null);
+
+    try {
+      const lighting = await setSessionLighting(active.sessionId, enabled, lightingMode);
+      setActive({ ...active, lighting });
+      setLightingNotice(getLightingToggleNotice({ requested: enabled, result: lighting, surface: 'single' }));
+      noosTelemetry.track('player_lighting_toggle', { active: lighting.active, enabled });
+    } catch {
+      setLightingNotice('조명을 바꾸지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      setLightingBusy(false);
+    }
+  }
+
   function endSession() {
     if (!active) {
       return;
@@ -205,7 +262,7 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
       durationSec: Math.round(durationSec),
       positionSec: Math.round(positionSec),
     });
-    // DEC-011: lighting is disconnected in MVP, so no lighting.stop call is made.
+    releaseLighting();
     navigation.navigate('Journey/Feedback', { sessionId: active.sessionId });
   }
 
@@ -232,7 +289,12 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
           },
         ]}
       >
-        <LightingStatusPill />
+        <LightingSwitchPill
+          busy={lightingBusy}
+          onPress={() => void toggleLighting()}
+          state={lightingState}
+        />
+        {lightingNotice ? <Toast message={lightingNotice} variant="info" /> : null}
 
         <View style={styles.stage}>
           <View pointerEvents="none" style={styles.planetAura} />
@@ -294,15 +356,6 @@ export function PlayerScreen({ navigation, route }: PlayerProps) {
         <Button fullWidth label="세션 종료" onPress={endSession} variant="destructive" />
       </ScrollView>
     </ScreenBackdrop>
-  );
-}
-
-function LightingStatusPill() {
-  return (
-    <View style={styles.lightingPill}>
-      <View style={styles.lightingDot} />
-      <Text style={styles.lightingText}>조명 OFF · 조명 미연결</Text>
-    </View>
   );
 }
 
@@ -506,31 +559,6 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  lightingDot: {
-    backgroundColor: color.text.disabled,
-    borderRadius: radius.pill,
-    height: space.sm,
-    width: space.sm,
-  },
-  lightingPill: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: color.bg.surfaceAlt,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: space.sm,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.sm,
-  },
-  lightingText: {
-    color: color.text.secondary,
-    fontFamily: type.small.family,
-    fontSize: type.small.size,
-    fontWeight: type.small.weight,
-    lineHeight: type.small.lineHeight,
   },
   planetImage: {
     borderColor: color.border.default,

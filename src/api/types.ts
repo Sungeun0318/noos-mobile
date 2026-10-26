@@ -160,8 +160,8 @@ export interface SessionAudio {
 }
 
 export interface SessionLighting {
+  enabled: boolean;
   active: boolean;
-  jobId: string | null;
 }
 
 export interface SessionSummary {

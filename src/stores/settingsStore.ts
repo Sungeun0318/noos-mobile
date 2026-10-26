@@ -31,13 +31,24 @@ export function normalizeBackendUrl(url: string) {
   return url.trim().replace(/\/+$/, '');
 }
 
+// v0 은 조명 UI 가 막혀 있던 시절(DEC-011)이라 저장된 lightingEnabled=false 는 사용자가 고른 값이 아니다.
+export function migrateSettings(persisted: unknown, version: number) {
+  const state = (persisted ?? {}) as Partial<SettingsState>;
+
+  if (version < 1) {
+    return { ...state, lightingEnabled: true };
+  }
+
+  return state;
+}
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       adaptiveBackendReal: false,
       backendBaseUrl: process.env.EXPO_PUBLIC_DEFAULT_BACKEND_URL ?? '',
       hasOnboarded: false,
-      lightingEnabled: false,
+      lightingEnabled: true,
       simulationMode: false,
       locale: 'ko',
       notificationsEnabled: false,
@@ -48,8 +59,10 @@ export const useSettingsStore = create<SettingsState>()(
       setSimulationMode: (value) => set({ simulationMode: value }),
     }),
     {
+      migrate: (persisted, version) => migrateSettings(persisted, version) as SettingsState,
       name: 'noos.settings.v1',
       storage: createJSONStorage(() => zustandStorage),
+      version: 1,
     },
   ),
 );

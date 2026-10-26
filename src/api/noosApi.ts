@@ -19,6 +19,7 @@ import type {
   MeResponse,
   MobileHealthResponse,
   SessionGetResponse,
+  SessionLighting,
   SessionListResponse,
 } from './types';
 
@@ -38,6 +39,11 @@ export const noosApi = {
       request<FeedbackResponse>(`/api/mobile/sessions/${id}/feedback`, {
         method: 'POST',
         body: JSON.stringify(body),
+      }),
+    setLighting: (id: string, enabled: boolean) =>
+      request<SessionLighting>(`/api/mobile/sessions/${id}/lighting`, {
+        method: 'POST',
+        body: JSON.stringify({ enabled }),
       }),
     list: (params: { cursor?: string | null; limit?: number; status?: string } = {}) => {
       const query = new URLSearchParams();
@@ -84,12 +90,20 @@ export const noosApi = {
       request<AdaptiveSessionStatusResponse>(`/api/mobile/adaptive/sessions/${id}/end`, {
         method: 'POST',
       }),
+    setLighting: (id: string, enabled: boolean) =>
+      request<SessionLighting>(`/api/mobile/adaptive/sessions/${id}/lighting`, {
+        method: 'POST',
+        body: JSON.stringify({ enabled }),
+      }),
     // TODO BE-D2: backend endpoint is not implemented yet; mock-first FE-D2 keeps local persistence.
     feedback: (id: string, body: AdaptiveFeedbackRequest) =>
       request<AdaptiveFeedbackResponse>(`/api/mobile/adaptive/sessions/${id}/feedback`, {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+  },
+  lighting: {
+    stop: () => request<unknown>('/api/mobile/lighting/stop', { method: 'POST' }),
   },
   auth: {
     signup: (body: {

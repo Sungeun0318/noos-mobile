@@ -3,11 +3,14 @@ import { useNavigation } from '@react-navigation/native';
 import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { currentSessionGatewayMode } from '@/api/sessionGateway';
 import { ScreenBackdrop } from '@/components/backdrop/ScreenBackdrop';
 import type { SettingsStackParamList } from '@/navigation/SettingsStack';
 import { Row, Section } from '@/components/ui';
 import { appVersion } from '@/lib/appInfo';
+import { getLightingUnavailableText } from '@/lighting/lightingState';
 import { noosTelemetry } from '@/lib/telemetry';
+import { useLightingAvailable } from '@/queries/useLightingAvailable';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { color, space, type } from '@/theme';
@@ -19,6 +22,10 @@ export function SettingsHomeScreen() {
   const backendBaseUrl = useSettingsStore((state) => state.backendBaseUrl);
   const simulationMode = useSettingsStore((state) => state.simulationMode);
   const setSimulationMode = useSettingsStore((state) => state.setSimulationMode);
+  const lightingEnabled = useSettingsStore((state) => state.lightingEnabled);
+  const setLightingEnabled = useSettingsStore((state) => state.setLightingEnabled);
+  const lightingMode = currentSessionGatewayMode(simulationMode);
+  const lightingAvailable = useLightingAvailable(lightingMode);
   const mode = useAuthStore((state) => state.mode);
   const user = useAuthStore((state) => state.user);
 
@@ -68,10 +75,19 @@ export function SettingsHomeScreen() {
           />
           <Row disabled hint="준비 중" label="Muse 상태" value="미연결" />
           <Row
-            disabled
-            hint="조명 미연결"
+            disabled={!lightingAvailable}
+            hint={lightingAvailable ? '새 세션부터 적용' : getLightingUnavailableText(lightingMode)}
             label="조명 사용"
-            right={<Switch disabled value={false} />}
+            right={
+              <Switch
+                disabled={!lightingAvailable}
+                onValueChange={(value) => {
+                  trackRow('lighting');
+                  setLightingEnabled(value);
+                }}
+                value={lightingAvailable && lightingEnabled}
+              />
+            }
           />
         </Section>
 

@@ -14,6 +14,7 @@ import type {
   AdaptiveWindowSubmitResponse,
 } from '@/api/adaptiveTypes';
 import { normalizeAdaptivePlanet } from '@/api/adaptiveTypes';
+import type { SessionLighting } from '@/api/types';
 import {
   appendLiveBandPoint,
   type AdaptiveLiveBandPoint,
@@ -24,6 +25,7 @@ import { PLANETS } from '@/theme';
 type SegmentNextGenStatus = Exclude<AdaptiveNextGenStatus, 'idle'>;
 
 interface ApplyStartOptions {
+  lightingEnabled?: boolean;
   planetHint?: string | null;
   seedSource?: AdaptiveSessionResponse['seedSource'];
   startedAt?: string;
@@ -43,6 +45,7 @@ interface AdaptiveSessionStoreShape {
   wearStatus: AdaptiveWearStatus;
   nextGenStatus: AdaptiveNextGenStatus;
   setSession(session: AdaptiveSessionResponse | null): void;
+  setLighting(lighting: SessionLighting): void;
   applyStartResponse(response: AdaptiveSessionStartResponse, options?: ApplyStartOptions): void;
   applyGetResponse(response: AdaptiveSessionResponse): void;
   applyWindowResult(
@@ -123,6 +126,7 @@ function buildSeedSession(
     currentSegment: seedSegment,
     endedAt: null,
     initialPlanet: planet,
+    lighting: { active: false, enabled: options.lightingEnabled ?? false },
     nextSegment: seedSegment,
     pausedAt: null,
     pausedReason: null,
@@ -205,6 +209,8 @@ function withDerived(session: AdaptiveSessionResponse | null, segments = session
 
 export const useAdaptiveSessionStore = create<AdaptiveSessionStoreShape>()((set) => ({
   ...initialState,
+  setLighting: (lighting) =>
+    set((state) => (state.session ? { session: { ...state.session, lighting } } : {})),
   setSession: (session) =>
     set({
       ...withDerived(session),
